@@ -628,12 +628,26 @@
                     eval(e.target.result); 
                     orcaData = {};
                     if (window.masterData) {
-                        for (const key in window.masterData) {
-                            if (window.masterData[key].WAVE_HS_BY_TP) {
-                                orcaData[key] = window.masterData[key].WAVE_HS_BY_TP;
+                    for (const key in window.masterData) {
+                        let matrix = window.masterData[key].WAVE_HS_BY_TP;
+                        if (matrix) {
+                            // Check if the matrix has at least one valid number
+                            let hasData = false;
+                            for (let tp in matrix) {
+                                if (matrix[tp].some(val => val !== null)) {
+                                    hasData = true;
+                                    break; // Found data, stop checking this matrix
+                                }
+                            }
+                            
+                            if (hasData) {
+                                orcaData[key] = matrix;
+                            } else {
+                                console.warn(`Skipping ${key}: Matrix is completely empty.`);
                             }
                         }
                     }
+                }
                     populateDropdownMenus();
                     alert("Analysis Data Loaded Successfully!");
                 } catch (err) {
@@ -1796,8 +1810,22 @@
                 orcaData = {};
                 if (window.masterData) {
                     for (const key in window.masterData) {
-                        if (window.masterData[key].WAVE_HS_BY_TP) {
-                            orcaData[key] = window.masterData[key].WAVE_HS_BY_TP;
+                        let matrix = window.masterData[key].WAVE_HS_BY_TP;
+                        if (matrix) {
+                            // Check if the matrix has at least one valid number
+                            let hasData = false;
+                            for (let tp in matrix) {
+                                if (matrix[tp].some(val => val !== null)) {
+                                    hasData = true;
+                                    break; // Found data, stop checking this matrix
+                                }
+                            }
+                            
+                            if (hasData) {
+                                orcaData[key] = matrix;
+                            } else {
+                                console.warn(`Skipping ${key}: Matrix is completely empty.`);
+                            }
                         }
                     }
                 }
