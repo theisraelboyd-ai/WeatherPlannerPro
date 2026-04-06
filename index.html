@@ -195,88 +195,70 @@
 </head>
 <body>
     <div id="print-view"></div>
-    <header style="display:grid; grid-template-columns: 1fr auto 1fr; align-items:center;">
-        <div style="display:flex; gap:8px; justify-self:start;">
-            <input type="file" id="file-input" accept=".js,.json" style="display:none" onchange="handleFileUpload(event)">
-            <div class="top-btn" onclick="document.getElementById('file-input').click()">📁 LOAD FILES</div>
+    <header style="display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; padding-bottom:10px; border-bottom:1px solid #334155; margin-bottom:15px;">
+    
+    <div style="display:flex; gap:8px; justify-self:start; align-items:center;">
+        <input type="file" id="file-input" accept=".js,.json,.txt" style="display:none" onchange="handleFileUpload(event)">
+        <div class="top-btn" onclick="document.getElementById('file-input').click()">📁 LOAD FILES</div>
+        
+        <div class="top-btn" style="border-color:#fbbf24; color:#fbbf24;" onclick="exportPlan()">💾 SAVE PLAN</div>
+        <div class="top-btn" style="border-color:#38bdf8; color:#38bdf8;" onclick="$('paste-analysis-modal').style.display='flex'">📋 PASTE LIMITS</div>
+    </div>
+    
+    <div style="font-size: 1.2rem; font-weight:900; color:#cbd5e1; text-align:center; padding:0 15px; line-height:1; margin:0;">OPERATION PLANNER</div>
+    
+    <div style="display:flex; gap:15px; justify-self:end; align-items:center;">
+        
+        <div style="display:flex; gap:8px; align-items:center;">
             <div class="top-btn" onclick="printPlan()">🖨️ PRINT PLAN</div>
             <div class="top-btn" style="border-color:var(--safe); color:var(--safe);" onclick="document.getElementById('readme-modal').style.display='flex'">📖 READ ME</div>
-            <div class="top-btn" style="border-color:var(--accent); color:var(--accent);" onclick="document.getElementById('data-format-modal').style.display='flex'">📊 DATA FORMAT</div>
+            <div class="top-btn" style="border-color:var(--accent); color:var(--accent);" onclick="document.getElementById('data-format-modal').style.display='flex'">📊 FORMATS</div>
         </div>
-        <div style="font-size: 1.2rem; color:#cbd5e1; text-align:center;">OPERATION PLANNER</div>
+
+        <div style="border-left:1px solid #334155; padding-left:15px; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%;">
+            <label for="mission-start" style="font-size:0.55rem; color:#94a3b8; font-weight:900; letter-spacing:1px; cursor:pointer; margin-bottom:2px; line-height:1;">MISSION START TIME</label>
+            <input type="datetime-local" id="mission-start" value="2026-04-03T08:00" onchange="updateClock()" style="background:#020617; border:1px solid var(--accent); border-radius:4px; color:#ffffff; font-size:0.8rem; font-weight:900; padding:2px 6px; width:auto; text-align:center; font-variant-numeric:tabular-nums; cursor:text; margin:0; line-height:1; box-sizing:border-box; color-scheme:dark;">
+        </div>
         
-        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
-            <label for="mission-start" style="font-size:0.55rem; color:#94a3b8; font-weight:900; letter-spacing:1px; cursor:pointer;">MISSION START TIME</label>
-            <input type="datetime-local" id="mission-start" value="2026-04-03T08:00" onchange="updateClock()" style="background:#020617; border:1px solid var(--accent); border-radius:4px; color:var(--safe); font-size:0.9rem; font-weight:900; padding:4px 8px; width:auto; text-align:right; font-variant-numeric:tabular-nums; cursor:text; margin-top:2px;">
+    </div>
+</header>
+
+<div id="paste-analysis-modal" class="edit-overlay" style="display:none; z-index:200; justify-content:center; align-items:center; background:rgba(0,0,0,0.9); position:fixed; top:0; left:0; width:100%; height:100%;">
+    <div style="background:var(--panel); border:1px solid var(--accent); padding:20px; border-radius:8px; width:800px; max-width:95vw; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+        <div class="card-title" style="color:var(--accent); font-size:1.1rem; margin-bottom:10px;">EXCEL DATA INJECTION ENGINE</div>
+        
+        <div style="background:rgba(56, 189, 248, 0.1); border-left:4px solid var(--accent); padding:8px; margin-bottom:15px; font-size:0.65rem; color:#cbd5e1;">
+            <strong>INSTRUCTIONS:</strong> Copy the data block from Excel (Rows 8+ in the template) and paste below. The engine will automatically detect the Analysis ID, Limit Class, and map all 12 headings.
         </div>
-    </header>
+
+        <textarea id="paste-area" style="width:100%; height:300px; background:#020617; color:var(--safe); font-family: 'JetBrains Mono', monospace; border:1px solid var(--border); padding:12px; font-size:0.7rem; white-space:pre; resize: none;" placeholder="Analysis_ID	Limit_Class	Param_Value	H_000	...&#10;MAIN_LAY	WAVE_HS_BY_TP	4	2.3	..."></textarea>
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="sys-btn btn-op" style="flex:2; height:40px; font-size:0.8rem;" onclick="processPastedData()">🚀 PROCESS & INJECT TO LIBRARY</button>
+            <button class="sys-btn btn-close" style="flex:1;" onclick="document.getElementById('paste-analysis-modal').style.display='none'">CANCEL</button>
+        </div>
+    </div>
+</div>
 
    <nav>
-        <div class="scroll-container" style="padding: 8px; gap: 4px;">
-            <div class="ui-card c-op" style="background: rgba(0,0,0,0.4); padding: 8px;">
-                <div class="card-title" style="margin-bottom: 4px;">Operational Setup</div>
-                
-                <label>Task Name</label>
-                <input type="text" id="op-name" placeholder="e.g. Skid 1 Deployment" style="margin-bottom:4px;">
-
-                <label>Primary Analysis Data</label>
-                <select id="op-sel" style="margin-bottom:4px;"></select>
-
-                <label>Secondary Analysis Data</label>
-                <select id="op-sel-2" style="margin-bottom:4px;"><option value="NONE">-- None --</option></select>
-                
-                <div><label>Duration (Hrs)</label><input type="number" id="op-dur" value="4" step="0.5" class="ent-jump" data-next="btn-add-op" style="margin-bottom:6px;"></div>
-                
-                <label>Heading Constraint</label>
-                <select id="op-hdg-mode" style="margin-bottom:4px;" onchange="sync()">
-                    <option value="90">±90°</option>
-                    <option value="45">±45°</option>
-                    <option value="30">±30°</option>
-                    <option value="15">±15°</option>
-                    <option value="0">±0°</option>
-                </select>
-                
-                <div id="op-hdg-locked-wrap" style="margin-bottom:6px;">
-                    <label style="color:var(--safe)">Target Heading (°T)</label>
-                    <input type="number" id="op-fixed-hdg" value="0">
-                </div>
-
-                <label class="checkbox-row" style="margin-bottom:4px; border-color:var(--danger);">
-                    <input type="checkbox" id="op-has-limit" onchange="$('op-lim-wrap').style.display = this.checked ? 'block' : 'none'">
-                    <span style="color:var(--danger)">Vessel Weather Limit</span>
-                </label>
-                <div id="op-lim-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--danger);">
-                    <select id="op-lim-type" style="margin-bottom:4px;"><option value="WIND">Max Wind (Kts)</option><option value="CURR">Max Current (Kts)</option></select>
-                    <div class="grid-2">
-                        <div><label>Dir (°T)</label><input type="number" id="op-lim-dir" value="0"></div>
-                        <div><label>Tolerance</label>
-                            <select id="op-lim-tol">
-                                <option value="90">±90°</option><option value="75">±75°</option><option value="60">±60°</option>
-                                <option value="45">±45°</option><option value="30">±30°</option><option value="15">±15°</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div style="margin-top:4px;"><label>Intensity</label><input type="number" id="op-lim-val" value="20"></div>
-                </div>
-
-                <button type="button" class="sys-btn btn-op" id="btn-add-op" onclick="addPhase()">Add Task to Timeline</button>
-            </div>
-        </div>
-
-        <div id="op-edit-panel" class="edit-overlay" style="border-right: 2px solid var(--accent);">
-            <div class="card-title" style="font-size:0.8rem; color:var(--accent); margin-bottom:2px;">Edit Operation</div>
-            <div><label>Task Name</label><input type="text" id="ed-op-name" style="margin-bottom:4px;"></div>
+    <div class="scroll-container" style="padding: 8px; gap: 4px;">
+        
+        <div class="ui-card c-op" style="background: rgba(0,0,0,0.4); padding: 8px;">
+            <div class="card-title" style="margin-bottom: 4px;">Operational Setup</div>
             
+            <label>Task Name</label>
+            <input type="text" id="op-name" placeholder="e.g. Skid 1 Deployment" style="margin-bottom:4px;">
+
             <label>Primary Analysis Data</label>
-            <select id="ed-op-sel" style="margin-bottom:4px;"></select>
-            
+            <select id="op-sel" style="margin-bottom:4px;"></select>
+
             <label>Secondary Analysis Data</label>
-            <select id="ed-op-sel-2" style="margin-bottom:4px;"><option value="NONE">-- None --</option></select>
+            <select id="op-sel-2" style="margin-bottom:4px;"><option value="NONE">-- None --</option></select>
             
-            <div><label>Duration (Hrs)</label><input type="number" id="ed-op-dur" step="0.5" style="margin-bottom:4px;"></div>
+            <div><label>Duration (Hrs)</label><input type="number" id="op-dur" value="4" step="0.5" class="ent-jump" data-next="btn-add-op" style="margin-bottom:6px;"></div>
             
             <label>Heading Constraint</label>
-            <select id="ed-op-hdg-mode" style="margin-bottom:4px;" onchange="sync()">
+            <select id="op-hdg-mode" style="margin-bottom:4px;" onchange="sync()">
                 <option value="90">±90°</option>
                 <option value="45">±45°</option>
                 <option value="30">±30°</option>
@@ -284,80 +266,195 @@
                 <option value="0">±0°</option>
             </select>
             
-            <div id="ed-op-hdg-locked-wrap" style="margin-bottom:6px;">
+            <div id="op-hdg-locked-wrap" style="margin-bottom:6px;">
                 <label style="color:var(--safe)">Target Heading (°T)</label>
-                <input type="number" id="ed-op-hdg">
+                <input type="number" id="op-fixed-hdg" value="0">
             </div>
 
-            <label class="checkbox-row" style="margin-top:4px; border-color:var(--danger);">
-                <input type="checkbox" id="ed-op-has-limit" onchange="$('ed-op-lim-wrap').style.display = this.checked ? 'block' : 'none'">
+            <label class="checkbox-row" style="margin-bottom:4px; border-color:var(--safe);">
+                <input type="checkbox" id="op-has-wave-limit" onchange="$('op-wave-wrap').style.display = this.checked ? 'flex' : 'none'">
+                <span style="color:var(--safe)">Global Hs Limit</span>
+            </label>
+            <div id="op-wave-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--safe); align-items:center; gap:8px;">
+                <label style="margin:0;">Max Hs (m):</label>
+                <input type="number" id="op-max-hs" step="0.1" value="2.5" style="width:60px;">
+            </div>
+
+            <label class="checkbox-row" style="margin-bottom:4px; border-color:var(--danger);">
+                <input type="checkbox" id="op-has-limit" onchange="$('op-lim-wrap').style.display = this.checked ? 'block' : 'none'">
                 <span style="color:var(--danger)">Vessel Weather Limit</span>
             </label>
-            <div id="ed-op-lim-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; border:1px dashed var(--danger);">
-                <select id="ed-op-lim-type" style="margin-bottom:4px;"><option value="WIND">Max Wind (Kts)</option><option value="CURR">Max Current (Kts)</option></select>
+            <div id="op-lim-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--danger);">
+                <select id="op-lim-type" style="margin-bottom:4px;"><option value="WIND">Max Wind (Kts)</option><option value="CURR">Max Current (Kts)</option></select>
                 <div class="grid-2">
-                    <div><label>Dir (°T)</label><input type="number" id="ed-op-lim-dir"></div>
+                    <div><label>Dir (°T)</label><input type="number" id="op-lim-dir" value="0"></div>
                     <div><label>Tolerance</label>
-                        <select id="ed-op-lim-tol">
+                        <select id="op-lim-tol">
                             <option value="90">±90°</option><option value="75">±75°</option><option value="60">±60°</option>
                             <option value="45">±45°</option><option value="30">±30°</option><option value="15">±15°</option>
                         </select>
                     </div>
                 </div>
-                <div style="margin-top:4px;"><label>Intensity</label><input type="number" id="ed-op-lim-val"></div>
+                <div style="margin-top:4px;"><label>Intensity</label><input type="number" id="op-lim-val" value="20"></div>
             </div>
 
-            <div style="display:flex; gap:4px; margin-top:auto;">
-                <button type="button" class="sys-btn btn-op" style="flex:1;" onclick="saveOpEdit()">Save</button>
-                <button type="button" class="sys-btn" style="flex:1; background:var(--danger); color:#fff;" onclick="deleteOp()">Delete</button>
-            </div>
-            <button type="button" class="sys-btn btn-close" onclick="closeOverlays()">Cancel</button>
+            <button type="button" class="sys-btn btn-op" id="btn-add-op" onclick="addPhase()">Add Task to Timeline</button>
         </div>
-    </nav>
+    </div>
+
+    <div id="op-edit-panel" class="edit-overlay" style="border-right: 2px solid var(--accent);">
+        <div class="card-title" style="font-size:0.8rem; color:var(--accent); margin-bottom:2px;">Edit Operation</div>
+        
+        <div><label>Task Name</label><input type="text" id="ed-op-name" style="margin-bottom:4px;"></div>
+        
+        <label>Primary Analysis Data</label>
+        <select id="ed-op-sel" style="margin-bottom:4px;"></select>
+        
+        <label>Secondary Analysis Data</label>
+        <select id="ed-op-sel-2" style="margin-bottom:4px;"><option value="NONE">-- None --</option></select>
+        
+        <div><label>Duration (Hrs)</label><input type="number" id="ed-op-dur" step="0.5" style="margin-bottom:4px;"></div>
+        
+        <label>Heading Constraint</label>
+        <select id="ed-op-hdg-mode" style="margin-bottom:4px;" onchange="sync()">
+            <option value="90">±90°</option>
+            <option value="45">±45°</option>
+            <option value="30">±30°</option>
+            <option value="15">±15°</option>
+            <option value="0">±0°</option>
+        </select>
+        
+        <div id="ed-op-hdg-locked-wrap" style="margin-bottom:6px;">
+            <label style="color:var(--safe)">Target Heading (°T)</label>
+            <input type="number" id="ed-op-hdg">
+        </div>
+
+			<label class="checkbox-row" style="margin-bottom:4px; border-color:var(--safe); cursor: pointer;">
+			<input type="checkbox" id="ed-op-has-wave-limit" 
+				   onchange="document.getElementById('ed-op-wave-wrap').style.display = this.checked ? 'flex' : 'none'">
+			<span style="color:var(--safe)">Global Hs Limit</span>
+		</label>
+
+		<div id="ed-op-wave-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--safe); align-items:center; gap:8px;">
+			<label style="margin:0;">Max Hs (m):</label>
+			<input type="number" id="ed-op-max-hs" step="0.1" style="width:60px;" placeholder="0.0">
+		</div>
+
+        <label class="checkbox-row" style="margin-bottom:4px; border-color:var(--danger);">
+            <input type="checkbox" id="ed-op-has-limit" onchange="$('ed-op-lim-wrap').style.display = this.checked ? 'block' : 'none'">
+            <span style="color:var(--danger)">Vessel Weather Limit</span>
+        </label>
+        <div id="ed-op-lim-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--danger);">
+            <select id="ed-op-lim-type" style="margin-bottom:4px;"><option value="WIND">Max Wind (Kts)</option><option value="CURR">Max Current (Kts)</option></select>
+            <div class="grid-2">
+                <div><label>Dir (°T)</label><input type="number" id="ed-op-lim-dir"></div>
+                <div><label>Tolerance</label>
+                    <select id="ed-op-lim-tol">
+                        <option value="90">±90°</option><option value="75">±75°</option><option value="60">±60°</option>
+                        <option value="45">±45°</option><option value="30">±30°</option><option value="15">±15°</option>
+                    </select>
+                </div>
+            </div>
+            <div style="margin-top:4px;"><label>Intensity</label><input type="number" id="ed-op-lim-val"></div>
+        </div>
+
+        <div style="display:flex; gap:4px; margin-top:auto;">
+            <button type="button" class="sys-btn btn-op" style="flex:1;" onclick="saveOpEdit()">Save</button>
+            <button type="button" class="sys-btn" style="flex:1; background:var(--danger); color:#fff;" onclick="deleteOp()">Delete</button>
+        </div>
+        <button type="button" class="sys-btn btn-close" onclick="closeOverlays()">Cancel</button>
+    </div>
+</nav>
 
     <main>
-        <div id="alert-modal" class="edit-overlay" style="z-index:100; justify-content:flex-start; align-items:center; background:rgba(0,0,0,0.8); padding-top: 5vh; overflow:hidden;">
-            <div style="background:var(--panel); border:2px solid var(--danger); border-radius:6px; width:900px; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
-                
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; border-bottom:1px solid var(--border); flex-shrink:0; background:#0b1120; border-radius:6px 6px 0 0;">
-                    <div style="color:var(--danger); font-weight:900; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
-                        ⚠️ LIMIT EXCEEDED
-                    </div>
-                    <button type="button" class="sys-btn btn-close" style="width:auto; padding:8px 16px; margin:0; font-size:0.75rem;" onclick="document.getElementById('alert-modal').style.display='none'">ACKNOWLEDGE & CLOSE</button>
-                </div>
+        <div id="readme-modal" class="edit-overlay" style="display:none; z-index:150; justify-content:center; align-items:center; background:rgba(0,0,0,0.85); overflow:hidden; position:fixed; top:0; left:0; width:100%; height:100%;">
+    <div style="background:var(--panel); border:1px solid var(--safe); border-radius:6px; width:820px; max-width:95vw; max-height:92vh; display:flex; flex-direction:column; box-shadow: 0 10px 40px rgba(0,0,0,0.9); position:relative;">
+        
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 25px; border-bottom:1px solid var(--border); background:#0b1120; border-radius:6px 6px 0 0; flex-shrink:0;">
+            <div style="color:var(--safe); font-weight:900; font-size:1.2rem; display:flex; align-items:center; gap:10px;">
+                ⚓ OPS-PLANNER PRO: MASTER TECHNICAL MANUAL
+            </div>
+            <button type="button" class="sys-btn btn-close" style="width:auto; padding:8px 16px; margin:0; font-size:0.75rem; border-color:#64748b; color:#64748b;" onclick="document.getElementById('readme-modal').style.display='none'">EXIT MANUAL</button>
+        </div>
 
-                <div id="alert-modal-content" style="padding:15px; font-size:0.8rem; overflow-y:auto; flex-grow:1;">
+        <!-- Content -->
+        <div style="font-family: 'Segoe UI', Tahoma, sans-serif; color: #cbd5e1; line-height: 1.5; padding: 25px; overflow-y: auto; flex-grow:1; background: linear-gradient(180deg, #0f172a 0%, #020617 100%);">
+            
+            <h2 style="color: #fff; border-bottom: 2px solid var(--safe); padding-bottom: 8px; margin-top: 0; font-size:1rem; letter-spacing:1px;">01. DATA ARCHITECTURE & PORTABILITY</h2>
+            <p style="font-size: 0.85rem; margin-bottom: 15px;">The Planner uses a <strong>Unified State Model</strong>. All sequence data, environmental inputs, and vessel limits are stored in a single volatile memory "brain."</p>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
+                <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px; border-radius: 4px;">
+                    <strong style="color:var(--accent); font-size:0.75rem; display:block; margin-bottom:5px;">💾 SAVE PLAN (MASTER PACKAGE)</strong>
+                    <span style="font-size:0.8rem;">Bundles Ops sequence, WX data, and Analysis Matrices into one <code>.txt</code> file.</span>
+                </div>
+                <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 4px;">
+                    <strong style="color:#fbbf24; font-size:0.75rem; display:block; margin-bottom:5px;">📧 EMAIL BYPASS</strong>
+                    <span style="font-size:0.8rem;">Exports as <code>.txt</code> to bypass corporate firewalls that block .json/.js files.</span>
                 </div>
             </div>
+
+            <h2 style="color: #fff; border-bottom: 2px solid var(--warn); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">02. OPERATIONAL WORKFLOW</h2>
+            <div style="font-size: 0.85rem;">
+                <div style="margin-bottom:12px;"><strong>STEP 1:</strong> Load Vessel Limits (mission_data.js or Paste Limits)</div>
+                <div style="margin-bottom:12px;"><strong>STEP 2:</strong> Build the Sequence – add tasks, durations, and assign analysis limits</div>
+                <div style="margin-bottom:12px;"><strong>STEP 3:</strong> Upload StormGeo WX, Currents, and Tidal Data</div>
+                <div style="margin-bottom:12px;"><strong>STEP 4:</strong> Run Simulation – the engine cross-references everything in real time</div>
+            </div>
+
+            <h2 style="color: #fff; border-bottom: 2px solid #c084fc; padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">03. ANALYTICS & INTERPOLATION</h2>
+            <ul style="font-size: 0.85rem; list-style: none; padding: 0;">
+                <li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+                    <strong style="color:#c084fc;">Linear Interpolation:</strong> Smooths 1hr/6hr weather data to per-minute resolution.
+                </li>
+                <li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+                    <strong style="color:var(--safe);">Tidal Curve:</strong> 24-point cubic spline shown as teal ghost wave.
+                </li>
+                <li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+                    <strong style="color:var(--accent);">Optimal Heading:</strong> Automatically solved for unrestricted tasks (maximizes strongest vessel axes).
+                </li>
+            </ul>
+
+            <h2 style="color: #fff; border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">04. 🖨️ CLIENT & MWS REPORTING</h2>
+            <p style="font-size: 0.85rem;">The <strong>PRINT PLAN</strong> button creates a clean, high-contrast report perfect for MWS submission, client review, or shift handover.</p>
+
+            <h2 style="color: #fff; border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">05. 🕹️ MANUAL OVERRIDES & STANDALONE MODE</h2>
+            <p style="font-size: 0.85rem;">Double-click any task or weather block on the timeline to manually edit. You can build a full plan without any CSV uploads for "What-If" analysis.</p>
+
+            <h2 style="color: #fff; border-bottom: 2px solid #fbbf24; padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">06. 📊 DATA FORMATS & INPUT STANDARDS</h2>
+            <ul style="font-size: 0.85rem; list-style: none; padding: 0;">
+                <li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+                    <strong style="color:#c084fc;">StormGeo CSV:</strong> Must keep original column headers (Date/Time, Wind Speed, Hs, etc.).
+                </li>
+                <li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+                    <strong style="color:var(--safe);">Tidal Data:</strong> DD/MM/YYYY header + 24 hourly values.
+                </li>
+                <li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+                    <strong style="color:var(--accent);">Analysis Matrices:</strong> WAVE_HS_BY_TP structure (JSON/JS format).
+                </li>
+            </ul>
+
+            <h2 style="color: #fff; border-bottom: 2px solid var(--danger); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">07. DATA HYGIENE & TROUBLESHOOTING</h2>
+            <div style="background: #000; padding: 15px; border-radius: 4px; border-left: 4px solid var(--danger); font-size: 0.8rem; color: #94a3b8;">
+                <strong>CRITICAL:</strong> Malformed dates/times in CSVs are the #1 cause of simulation failure. Check browser Console (F12) for "Undefined" errors if the simulation won't start.
+            </div>
+
         </div>
-		<div id="readme-modal" class="edit-overlay" style="z-index:150; justify-content:flex-start; align-items:center; background:rgba(0,0,0,0.85); padding-top: 5vh; overflow:hidden;">
-            <div style="background:var(--panel); border:1px solid var(--safe); border-radius:6px; width:600px; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
-                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; border-bottom:1px solid var(--border); background:#0b1120; border-radius:6px 6px 0 0;">
-                    <div style="color:var(--safe); font-weight:900; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
-                        📖 OPERATION PLANNER - QUICK START
-                    </div>
-                    <button type="button" class="sys-btn btn-close" style="width:auto; padding:8px 16px; margin:0; font-size:0.75rem;" onclick="document.getElementById('readme-modal').style.display='none'">CLOSE</button>
-                </div>
-                <div style="padding:20px; font-size:0.85rem; line-height:1.6; color:#e2e8f0; overflow-y:auto; flex-grow:1;">
-                    <h3 style="color:#fff; margin-top:0; border-bottom:1px solid var(--border); padding-bottom:4px;">1. Load Your Data</h3>
-                    <p>Click <strong>📁 LOAD FILES</strong> in the top-left to upload your <code style="color:var(--accent)">.js</code> file containing your operability limits matrix.</p>
-                    <h3 style="color:#fff; border-bottom:1px solid var(--border); padding-bottom:4px;">2. Build the Sequence</h3>
-                    <p>In the left sidebar, enter a Task Name, select your primary/secondary analysis, heading tolerance, and duration. Add it to the timeline. Double-click any task block on the timeline to edit it.</p>
-                    <h3 style="color:#fff; border-bottom:1px solid var(--border); padding-bottom:4px;">3. Set the Weather</h3>
-                    <p>In the right sidebar, input Wind, Sea, Swell, and Current parameters. Save the block to overlay the forecast against your operational timeline.</p>
-                    <h3 style="color:#fff; border-bottom:1px solid var(--border); padding-bottom:4px;">4. Run the Simulation</h3>
-                    <p>Use the timeline at the bottom to scrub through time, or hit <strong>▶ RUN SIMULATION</strong> to watch the vessel automatically seek the optimal safe heading within your set tolerances.</p>
-                    <ul style="margin-top:0;">
-                        <li><span style="color:var(--safe)">Green Heatmap</span>: Safe heading.</li>
-                        <li><span style="color:var(--warn)">Orange Heatmap</span>: Warning (approaching limits).</li>
-                        <li><span style="color:var(--danger)">Red Heatmap</span>: Limit exceeded (Unsafe).</li>
-                    </ul>
-                    <h3 style="color:#fff; border-bottom:1px solid var(--border); padding-bottom:4px;">5. Print the Report</h3>
-                    <p>Click <strong>🖨️ PRINT PLAN</strong> to generate a clean, PDF-ready summary report. It includes sequence tables, limit validations, and visual radar summaries for each stage.</p>
-                    <div style="height: 200px; width: 100%;"></div>
-                </div>
+
+        <!-- Footer -->
+        <div style="background: #0b1120; border-top: 1px solid var(--border); padding: 15px 25px; border-radius: 0 0 6px 6px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+            <div style="font-size: 0.6rem; color: #475569; font-weight: bold; letter-spacing: 2px;">
+                SYSTEM STATUS: <span style="color:var(--safe)">OPTIMAL</span>
+            </div>
+            <div style="font-size: 0.65rem; color: #64748b; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;">
+                Developed by <span style="color: var(--safe);">Israel (Izzy) Boyd</span> & <span style="color: var(--accent);">Gemini AI</span>
             </div>
         </div>
+
+    </div>
+</div>
+        
 
         <div id="data-format-modal" class="edit-overlay" style="z-index:150; justify-content:flex-start; align-items:center; background:rgba(0,0,0,0.85); padding-top: 5vh; overflow:hidden;">
             <div style="background:var(--panel); border:1px solid var(--accent); border-radius:6px; width:700px; max-width:95vw; max-height:85vh; display:flex; flex-direction:column; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
@@ -579,19 +676,44 @@
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:2px;">
-            <label style="font-size:0.7rem; font-weight:900; color:#cbd5e1; margin-bottom:0;">2. ENVIRONMENTAL FORECAST</label>
+            <label style="font-size:0.7rem; font-weight:900; color:#cbd5e1; margin-bottom:0;">
+			2. ENVIRONMENTAL FORECAST <span id="wx-note" style="color:var(--warn); margin-left:10px; font-size:0.6rem;"></span>
+			</label>
             <button type="button" class="top-btn" style="border-color:var(--danger); color:var(--danger); padding:2px 6px;" onclick="resetWx()">RESET FORECAST</button>
         </div>
-        <div class="t-track wx-track" id="tr-wx" onmousedown="scrub(event)">
-            <div class="ph" id="ph-wx"></div><div id="cont-wx" style="display:flex; width:100%; height:100%"></div>
+        <div class="t-track wx-track" id="tr-wx" onmousedown="scrub(event)" onmousemove="showTideTooltip(event)" onmouseleave="hideTideTooltip()" style="position:relative;">
+            
+            <div id="tide-tooltip" style="position:absolute; display:none; background:rgba(15, 23, 42, 0.95); border:1px solid #2dd4bf; color:#2dd4bf; padding:2px 6px; border-radius:4px; font-size:0.65rem; font-weight:900; z-index:999; pointer-events:none; white-space:nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);"></div>
+
+            <div id="cont-wx" style="display:flex; width:100%; height:100%; position:relative; z-index:1;"></div>
+            
+            <div id="svg-tide" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:3; pointer-events:none; opacity:0.8;"></div>
+            
+            <div class="ph" id="ph-wx" style="z-index:4;"></div>
         </div>
         
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
-            <span id="t-digital" style="color:var(--accent); font-family:monospace; font-size:1.3rem; font-weight:950;">T+ 00:00</span>
-            <div style="display:flex; gap: 8px;">
-                <button type="button" class="top-btn" id="btn-sim-speed" style="border-color:#94a3b8; color:#94a3b8;" onclick="toggleSimSpeed()">1.0x SPD</button>
-                <button type="button" class="top-btn" id="btn-sim-loop" style="border-color:var(--safe); color:var(--safe);" onclick="toggleSimLoop()">🔁 LOOP: ON</button>
-                <button type="button" class="top-btn" id="btn-sim" style="border-color:var(--safe); color:var(--safe);" onclick="toggleSim()">▶ RUN SIMULATION</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; margin-top:5px;">
+            
+            <div id="t-digital" style="display:flex; align-items:center;">
+                <span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: --/-- --:--</span>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center;">
+                
+                <input type="file" id="wx-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCSV(event)">
+                <div class="top-btn" style="border-color:var(--warn); color:var(--warn); padding:4px 8px; font-size:0.7rem;" onclick="triggerStormGeo()">⛅ STORMGEO WX</div>
+                
+                <input type="file" id="curr-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCurrentCSV(event)">
+                <div class="top-btn" style="border-color:#c084fc; color:#c084fc; padding:4px 8px; font-size:0.7rem;" onclick="triggerStormGeoCurrent()">🌊 STORMGEO CURRENTS</div>
+                
+                <input type="file" id="tide-txt-input" accept=".txt,.csv" style="display:none" onchange="handleTideData(event)">
+                <div class="top-btn" style="border-color:#2dd4bf; color:#2dd4bf; padding:4px 8px; font-size:0.7rem;" onclick="triggerTide()">📈 STORM GEO TIDAL DATA</div>
+
+                <div style="width:1px; height:20px; background:#334155; margin: 0 5px;"></div>
+
+                <div id="btn-sim-speed" class="sim-btn" onclick="toggleSimSpeed()" style="padding:4px 8px; font-size:0.7rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">1.0X SPD</div>
+                <div id="btn-sim-loop" class="sim-btn" onclick="toggleSimLoop()" style="padding:4px 8px; font-size:0.7rem; color:var(--safe); border-color:var(--safe); cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">🔁 LOOP: ON</div>
+                <div id="btn-sim" class="sim-btn play-btn" onclick="toggleSim()" style="padding:4px 12px; font-size:0.7rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">▶ RUN SIMULATION</div>
             </div>
         </div>
     </footer>
@@ -607,7 +729,7 @@
         let state = { 
             t: 0, t_pop: 24, hdg: 0, 
             start: new Date("2026-04-03T08:00"), 
-            ops: [], wx: [], 
+            ops: [], wx: [], tide: [],
             editOpIdx: -1, editWxIdx: -1, isEditWxOpen: false 
         };
         let draggingType = null;
@@ -618,46 +740,63 @@
         let isScrubbing = false;
 
         // 3. FILE UPLOAD ENGINE
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+					function handleFileUpload(event) {
+				const file = event.target.files[0];
+				if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    eval(e.target.result); 
-                    orcaData = {};
-                    if (window.masterData) {
-                    for (const key in window.masterData) {
-                        let matrix = window.masterData[key].WAVE_HS_BY_TP;
-                        if (matrix) {
-                            // Check if the matrix has at least one valid number
-                            let hasData = false;
-                            for (let tp in matrix) {
-                                if (matrix[tp].some(val => val !== null)) {
-                                    hasData = true;
-                                    break; // Found data, stop checking this matrix
-                                }
-                            }
-                            
-                            if (hasData) {
-                                orcaData[key] = matrix;
-                            } else {
-                                console.warn(`Skipping ${key}: Matrix is completely empty.`);
-                            }
-                        }
-                    }
-                }
-                    populateDropdownMenus();
-                    alert("Analysis Data Loaded Successfully!");
-                } catch (err) {
-                    console.error("Error loading data:", err);
-                    alert("Failed to load file. Ensure it is a valid mission_data.js format.");
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = ""; 
-        }
+				const reader = new FileReader();
+				reader.onload = function(e) {
+					const content = e.target.result;
+					
+					try {
+						// Try to see if it's our JSON package first
+						if (content.trim().startsWith('{')) {
+							const data = JSON.parse(content);
+							
+							if (data.fileType === "OpsPlannerMasterV2") {
+								state.ops = data.operations;
+								orcaData = data.analysisLibrary;
+								state.tide = data.tideData || [];
+								
+								if (data.missionStart) {
+									state.start = new Date(data.missionStart);
+									if ($('mission-start')) $('mission-start').value = data.missionStart.substring(0,16);
+								}
+								
+								populateDropdownMenus();
+								sync();
+								alert(`✅ PROJECT LOADED: ${data.projectName}`);
+								return;
+							}
+						}
+
+						// FALLBACK: If not a package, treat as raw .js Analysis Matrix
+						eval(content); 
+						orcaData = {};
+						if (window.masterData) {
+							for (const key in window.masterData) {
+								let matrix = window.masterData[key].WAVE_HS_BY_TP;
+								if (matrix) {
+									let hasData = false;
+									for (let tp in matrix) {
+										if (matrix[tp].some(val => val !== null)) {
+											hasData = true; break;
+										}
+									}
+									if (hasData) orcaData[key] = matrix;
+								}
+							}
+							populateDropdownMenus();
+							alert("✅ Analysis Data Loaded Successfully!");
+						}
+					} catch (err) {
+						console.error("Load Error:", err);
+						alert("Failed to parse file. Check format.");
+					}
+				};
+				reader.readAsText(file);
+				event.target.value = ""; 
+			}
 
         // 4. Dynamic Dropdown Populator
         function populateDropdownMenus() {
@@ -753,23 +892,41 @@
 
         // Sector Check Math (for Custom Geographic Weather Limits)
         function checkGeographicLimit(op, wx) {
-            if (!op.hasLim) return { failed: false, warning: false };
-            let force = op.limType === 'WIND' ? wx.wSpd : wx.cSpd;
-            let dir = op.limType === 'WIND' ? wx.wDir : wx.cDir;
-            
-            let limitApplies = true;
-            let lDir = parseFloat(op.limDir);
-            let lTol = parseFloat(op.limTol);
-            let diff = Math.abs((dir - lDir + 540) % 360 - 180);
-            if (diff > lTol) limitApplies = false; // Checks against user selected tolerance
-            
-            if (limitApplies) {
-                if (force > op.limVal) return { failed: true, warning: false };
-                if (force >= op.limVal * 0.8) return { failed: false, warning: true };
-            }
-            return { failed: false, warning: false };
-        }
+			let alerts = [];
 
+			// 1. GLOBAL HS CHECK (The new layer)
+			if (op.hasWaveLimit) {
+				if (wx.seaHs > op.maxHs) {
+					alerts.push({ type: 'HS_GLOBAL', msg: `GLOBAL HS (${wx.seaHs.toFixed(1)}m) > LIMIT`, isWarning: false });
+				} else if (wx.seaHs >= (op.maxHs * 0.8)) {
+					alerts.push({ type: 'HS_GLOBAL', msg: `GLOBAL HS NEAR LIMIT`, isWarning: true });
+				}
+			}
+
+			// 2. VESSEL SECTOR CHECK (The old layer)
+			if (op.hasLim) {
+				let force = op.limType === 'WIND' ? wx.wSpd : wx.cSpd;
+				let dir = op.limType === 'WIND' ? wx.wDir : wx.cDir;
+				let lDir = parseFloat(op.limDir);
+				let lTol = parseFloat(op.limTol);
+				let diff = Math.abs((dir - lDir + 540) % 360 - 180);
+				
+				if (diff <= lTol) { 
+					if (force > op.limVal) {
+						alerts.push({ type: op.limType, msg: `${op.limType} (${force.toFixed(1)}k) > SECTOR LIMIT`, isWarning: false });
+					} else if (force >= (op.limVal * 0.8)) {
+						alerts.push({ type: op.limType, msg: `${op.limType} NEAR SECTOR LIMIT`, isWarning: true });
+					}
+				}
+			}
+
+			return {
+				failed: alerts.some(a => !a.isWarning),
+				warning: alerts.some(a => a.isWarning),
+				alertList: alerts // Return the full array for the UI to map correctly
+			};
+		}
+		
         // This solves the Print vs Simulation bug by doing the math once for both
         function getOptimalHdg(op, wx) {
             let tol = parseInt(op.hdgMode);
@@ -805,385 +962,422 @@
 
         // 6. Heatmap Generation
         function generateHeatmap(op, wx) {
-            let warnings = [];
-            if (!op || !wx) {
-                $('heatmap-ring').style.background = 'transparent';
-                $('system-alerts').innerHTML = '';
-                return;
-            }
+    let warnings = [];
+    if (!op || !wx) {
+        $('heatmap-ring').style.background = 'transparent';
+        $('system-alerts').innerHTML = '';
+        return;
+    }
 
-            let tol = parseInt(op.hdgMode);
-            if (isNaN(tol)) tol = 0;
-            if (tol === 0) warnings.push(`<div class="alert-box alert-safe">🔒 HEADING LOCKED (${op.fixedHdg}°)</div>`);
+    // 1. HEADING LOCK STATUS
+    let tol = parseInt(op.hdgMode);
+    if (isNaN(tol)) tol = 0;
+    if (tol === 0) {
+        warnings.push(`<div class="alert-box alert-safe">🔒 HEADING LOCKED (${op.fixedHdg}°)</div>`);
+    }
 
-            let stops = [];
-            let currentStern = (state.hdg + 180) % 360;
-            let rSeaCur = (currentStern - wx.seaDir + 360) % 360;
-            let rSwCur = (currentStern - wx.swDir + 360) % 360;
-            let cLimSea = getMinLimit(op.refs, wx.seaTp, rSeaCur);
-            let cLimSw = getMinLimit(op.refs, wx.swTp, rSwCur);
+    // 2. RUN SAFETY ENGINES
+    // Get the result from the refactored Geographic/Global engine
+    let geoCheck = checkGeographicLimit(op, wx);
+    
+    let currentStern = (state.hdg + 180) % 360;
+    let rSeaCur = (currentStern - wx.seaDir + 360) % 360;
+    let rSwCur = (currentStern - wx.swDir + 360) % 360;
+    
+    // Check Analysis Matrices (Sea & Swell)
+    let cLimSea = getMinLimit(op.refs, wx.seaTp, rSeaCur);
+    let cLimSw = getMinLimit(op.refs, wx.swTp, rSwCur);
 
-            let curStyle = "cursor:pointer; transition:0.2s;";
-            if (cLimSea !== null && cLimSea !== 99 && wx.seaHs > cLimSea) warnings.push(`<div class="alert-box alert-danger" style="${curStyle}" onclick="openAlertModal('SEA')">⚠️ SEA Hs (${wx.seaHs.toFixed(1)}m) > Lim</div>`);
-            if (cLimSw !== null && cLimSw !== 99 && wx.swHs > cLimSw) warnings.push(`<div class="alert-box alert-danger" style="${curStyle}" onclick="openAlertModal('SWELL')">⚠️ SWL Hs (${wx.swHs.toFixed(1)}m) > Lim</div>`);
-            
-            let geoCheck = checkGeographicLimit(op, wx);
-            if (geoCheck.failed) {
-                let forceStr = op.limType === 'WIND' ? `WIND (${wx.wSpd.toFixed(1)}k)` : `CURR (${wx.cSpd.toFixed(1)}k)`;
-                warnings.push(`<div class="alert-box alert-danger" style="${curStyle}" onclick="openAlertModal('${op.limType}')">⚠️ ${forceStr} > Lim</div>`);
-            }
+    if (cLimSea !== null && cLimSea !== 99 && wx.seaHs > cLimSea) {
+        warnings.push(`<div class="alert-box alert-danger" onclick="openAlertModal('SEA')">⚠️ SEA Hs (${wx.seaHs.toFixed(1)}m) > Lim</div>`);
+    }
+    if (cLimSw !== null && cLimSw !== 99 && wx.swHs > cLimSw) {
+        warnings.push(`<div class="alert-box alert-danger" onclick="openAlertModal('SWELL')">⚠️ SWL Hs (${wx.swHs.toFixed(1)}m) > Lim</div>`);
+    }
 
-            $('system-alerts').innerHTML = warnings.join('');
+    // 3. DISPATCH DYNAMIC ALERTS (Global Hs & Sector Limits)
+    if (geoCheck.alertList && geoCheck.alertList.length > 0) {
+        geoCheck.alertList.forEach(a => {
+            // alert-safe is used for Amber warnings, alert-danger for Red failures
+            let css = a.isWarning ? 'alert-safe' : 'alert-danger';
+            warnings.push(`<div class="alert-box ${css}" onclick="openAlertModal('${a.type}')">⚠️ ${a.msg}</div>`);
+        });
+    }
 
-            for(let h = 0; h <= 360; h += 5) {
-                let stern = (h + 180) % 360;
-                let relSea = (stern - wx.seaDir + 360) % 360;
-                let relSw = (stern - wx.swDir + 360) % 360;
-                
-                let limSea = getMinLimit(op.refs, wx.seaTp, relSea);
-                let limSw = getMinLimit(op.refs, wx.swTp, relSw);
-                
-                let isSafe = true;
-                let isWarning = false;
+    // Push all gathered cards to the HUD
+    $('system-alerts').innerHTML = warnings.join('');
 
-                if (limSea !== null && limSea !== 99) {
-                    if (wx.seaHs > limSea) isSafe = false;
-                    else if (wx.seaHs >= limSea * 0.8) isWarning = true; 
-                }
-                
-                // BUG FIXED: Swell now triggers a failure independently of Wind Sea
-                if (limSw !== null && limSw !== 99) {
-                    if (wx.swHs > limSw) isSafe = false; // Massive swell will now turn the HUD Red
-                    else if (wx.swHs >= limSw * 0.8) isWarning = true;
-                }
+    // 4. HEATMAP RING GENERATION
+    let stops = [];
+    for(let h = 0; h <= 360; h += 5) {
+        let stern = (h + 180) % 360;
+        let relSea = (stern - wx.seaDir + 360) % 360;
+        let relSw = (stern - wx.swDir + 360) % 360;
+        
+        let limSea = getMinLimit(op.refs, wx.seaTp, relSea);
+        let limSw = getMinLimit(op.refs, wx.swTp, relSw);
+        
+        let isSafe = true;
+        let isWarning = false;
 
-                // Geographic check applies across all headings
-                if (geoCheck.failed) isSafe = false;
-                else if (geoCheck.warning) isWarning = true;
-
-                let color = 'rgba(16, 185, 129, 0.6)'; 
-                if (!isSafe) color = 'rgba(239, 68, 68, 0.8)'; 
-                else if (isWarning) color = 'rgba(245, 158, 11, 0.8)'; 
-
-                stops.push(`${color} ${h}deg`);
-            }
-            $('heatmap-ring').style.background = `conic-gradient(from 0deg, ${stops.join(', ')})`;
+        // Matrix Check for this specific angle
+        if (limSea !== null && limSea !== 99) {
+            if (wx.seaHs > limSea) isSafe = false;
+            else if (wx.seaHs >= limSea * 0.8) isWarning = true; 
         }
+        if (limSw !== null && limSw !== 99) {
+            if (wx.swHs > limSw) isSafe = false;
+            else if (wx.swHs >= limSw * 0.8) isWarning = true;
+        }
+
+        // Global/Sector Check (applies to ALL angles)
+        if (geoCheck.failed) {
+            isSafe = false;
+        } else if (geoCheck.warning) {
+            isWarning = true;
+        }
+
+        // Assign visual color
+        let color = 'rgba(16, 185, 129, 0.6)'; // Default Green
+        if (!isSafe) {
+            color = 'rgba(239, 68, 68, 0.8)'; // Red Failure
+        } else if (isWarning) {
+            color = 'rgba(245, 158, 11, 0.8)'; // Amber Warning
+        }
+
+        stops.push(`${color} ${h}deg`);
+    }
+    
+    // Apply gradient to the HUD ring
+    $('heatmap-ring').style.background = `conic-gradient(from 0deg, ${stops.join(', ')})`;
+}
 
         function openAlertModal(failType) {
-            if (simTimer) toggleSim(); 
-            
-            let curOp = state.ops.find(o => state.t >= o.start && state.t < o.end);
-            if (!curOp) return;
-            
-            let wx = getInterpolatedWx(state.t);
-            let stern = (state.hdg + 180) % 360;
-            let html = '';
-            
-            if (failType === 'WIND' || failType === 'CURR') {
-                let actualF = failType === 'WIND' ? wx.wSpd : wx.cSpd;
-                let actualD = failType === 'WIND' ? wx.wDir : wx.cDir;
-                let dirLabel = curOp.limDir === 'ALL' ? 'ALL DIR' : `${curOp.limDir}° (±11.25°)`;
-                
-                html = `<div style="color:#f8fafc;">
-                    <strong>Vessel Weather Limit Exceeded:</strong><br><br>
-                    Parameter: ${failType}<br>
-                    Active Force: <span style="color:var(--danger)">${actualF.toFixed(1)} kts</span> from ${Math.round(actualD)}°T<br>
-                    User Limit: ${curOp.limVal} kts from Sector: ${dirLabel}
-                </div>`;
-                $('alert-modal').firstElementChild.style.width = '350px';
-            } 
-            else {
-                let tp = failType === 'SEA' ? wx.seaTp : wx.swTp;
-                let hs = failType === 'SEA' ? wx.seaHs : wx.swHs;
-                let dir = failType === 'SEA' ? wx.seaDir : wx.swDir;
-                let relDir = (stern - dir + 360) % 360;
-                
-                $('alert-modal').firstElementChild.style.width = '950px';
-                
-                curOp.refs.forEach(ref => {
-                    if (ref === 'NONE') return;
-                    let matrix = orcaData[ref];
-                    if (!matrix) return;
+    if (simTimer) toggleSim(); 
+    
+    let curOp = state.ops.find(o => state.t >= o.start && state.t < o.end);
+    if (!curOp) return;
+    
+    let wx = getInterpolatedWx(state.t);
+    let stern = (state.hdg + 180) % 360;
+    let html = '';
+    
+    // --- 1. NEW: GLOBAL HS LIMIT MODAL ---
+    if (failType === 'HS_GLOBAL') {
+        html = `<div style="color:#f8fafc; font-size: 0.9rem; line-height: 1.6;">
+            <strong style="color:var(--safe); font-size: 1rem;">Global Wave Limit Exceeded:</strong><br><br>
+            Parameter: Maximum Significant Wave Height (Hs)<br>
+            Active Sea State: <span style="color:var(--danger); font-weight: bold;">${wx.seaHs.toFixed(1)} m</span><br>
+            Global Stop Limit: <span style="color:var(--safe); font-weight: bold;">${curOp.maxHs.toFixed(1)} m</span>
+        </div>`;
+        $('alert-modal').firstElementChild.style.width = '350px';
+    } 
+    // --- 2. EXISTING: SECTOR LIMIT MODAL ---
+    else if (failType === 'WIND' || failType === 'CURR') {
+        let actualF = failType === 'WIND' ? wx.wSpd : wx.cSpd;
+        let actualD = failType === 'WIND' ? wx.wDir : wx.cDir;
+        let dirLabel = curOp.limDir === 'ALL' ? 'ALL DIR' : `${curOp.limDir}° (±${curOp.limTol}°)`;
+        
+        html = `<div style="color:#f8fafc; font-size: 0.9rem; line-height: 1.6;">
+            <strong style="color:var(--danger); font-size: 1rem;">Vessel Sector Limit Exceeded:</strong><br><br>
+            Parameter: ${failType}<br>
+            Active Force: <span style="color:var(--danger); font-weight: bold;">${actualF.toFixed(1)} kts</span> from ${Math.round(actualD)}°T<br>
+            User Limit: ${curOp.limVal} kts from Sector: ${dirLabel}
+        </div>`;
+        $('alert-modal').firstElementChild.style.width = '350px';
+    } 
+    // --- 3. EXISTING: COMPLEX ANALYSIS MATRIX MODAL ---
+    else {
+        let tp = failType === 'SEA' ? wx.seaTp : wx.swTp;
+        let hs = failType === 'SEA' ? wx.seaHs : wx.swHs;
+        let dir = failType === 'SEA' ? wx.seaDir : wx.swDir;
+        let relDir = (stern - dir + 360) % 360;
+        
+        $('alert-modal').firstElementChild.style.width = '950px';
+        
+        curOp.refs.forEach(ref => {
+            if (ref === 'NONE') return;
+            let matrix = orcaData[ref];
+            if (!matrix) return;
 
-                    let rowKeys = Object.keys(matrix).map(Number).sort((a,b)=>a-b);
-                    let clampedTp = Math.max(0, Math.min(12, tp)); 
-                    let tpL = Math.floor(clampedTp);
-                    let tpH = Math.ceil(clampedTp);
-                    let colFloat = relDir / 30;
-                    let colL = Math.floor(colFloat) % 12;
-                    let colH = Math.ceil(colFloat) % 12;
-                    let isExact = (tpL === tpH && colL === colH);
-                    
-                    let limitVal = getLimit(ref, tp, relDir);
-                    let isFailed = limitVal !== null && hs > limitVal;
-                    let titleColor = isFailed ? 'var(--danger)' : 'var(--safe)';
-                    let statusText = isFailed ? 'FAILED' : 'SAFE';
-                    
-                    html += `
-                    <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; margin-bottom:15px; border-left:4px solid ${titleColor}; position:relative;">
-                        <div style="position:sticky; top:-15px; background:#0b1120; padding:10px; margin:-10px -10px 10px -10px; border-radius:6px 6px 0 0; border-bottom:1px solid #334155; z-index:10; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
-                            <span style="color:${titleColor}; font-weight:900; text-transform:uppercase; font-size:0.95rem;">${ref.replace(/_/g, ' ')} [${statusText}]</span><br>
-                            <span style="font-size:0.75rem; line-height:1.4; display:inline-block; margin-top:4px; color:#cbd5e1;">
-                                <strong>Active Force:</strong> ${failType} (Hs: <span style="color:${isFailed ? 'var(--danger)' : '#fff'}">${hs.toFixed(1)}m</span> | Tp: ${tp.toFixed(1)}s | Rel Dir: ${Math.round(relDir)}°)<br>
-                                <strong style="color:${titleColor}">Calculated Limit:</strong> <span style="font-weight:900; font-size:0.85rem;">${limitVal !== null ? limitVal.toFixed(2) + 'm' : 'No Data'}</span> ${!isExact && limitVal !== null ? '<span style="color:#94a3b8;">(Interpolated)</span>' : ''}
-                            </span>
-                        </div>
-                        <div style="overflow-x:auto; background:#020617; border-radius:4px; padding:4px; margin-top:10px;">
-                            <table style="width:100%; border-collapse:collapse; font-size:0.65rem; text-align:center; color:#fff; white-space:nowrap;">
-                                <tr><th style="border:1px solid #334155; padding:6px; color:var(--accent); background:#0f172a;">Tp \\ Rel°</th>`;
-                    
-                    for(let i=0; i<12; i++) {
-                        let isCol = (i === colL || i === colH) ? 'background:rgba(255,255,255,0.05);' : '';
-                        html += `<th style="border:1px solid #334155; padding:6px; background:#0f172a; ${isCol}">${i*30}°</th>`;
-                    }
-                    html += `</tr>`;
-
-                    rowKeys.forEach(r => {
-                        let isRow = (r === tpL || r === tpH) ? 'background:rgba(255,255,255,0.05);' : '';
-                        html += `<tr style="${isRow}"><td style="border:1px solid #334155; padding:6px; font-weight:bold; color:var(--accent); background:#0f172a;">${r}s</td>`;
-                        
-                        for(let c=0; c<12; c++) {
-                            let val = matrix[r][c];
-                            let displayVal = val === null ? 'X' : val.toFixed(2);
-                            let isBoundingNode = (r === tpL || r === tpH) && (c === colL || c === colH);
-                            let bg = 'transparent'; let fw = 'normal'; let borderStyle = '1px solid #334155';
-
-                            if (isBoundingNode) {
-                                fw = '900';
-                                if (isExact) {
-                                    bg = isFailed ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.7)';
-                                    borderStyle = isFailed ? '2px solid #fca5a5' : '2px solid #6ee7b7';
-                                } else {
-                                    bg = isFailed ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.25)';
-                                    borderStyle = isFailed ? '2px dashed #ef4444' : '2px dashed #10b981';
-                                }
-                            }
-                            html += `<td style="border:${borderStyle}; padding:6px; background:${bg}; font-weight:${fw};">${displayVal}</td>`;
-                        }
-                        html += `</tr>`;
-                    });
-                    html += `</table></div></div>`;
-                });
-                html += `<div style="height: 200px; width: 100%;"></div>`;
+            let rowKeys = Object.keys(matrix).map(Number).sort((a,b)=>a-b);
+            let clampedTp = Math.max(0, Math.min(12, tp)); 
+            let tpL = Math.floor(clampedTp);
+            let tpH = Math.ceil(clampedTp);
+            let colFloat = relDir / 30;
+            let colL = Math.floor(colFloat) % 12;
+            let colH = Math.ceil(colFloat) % 12;
+            let isExact = (tpL === tpH && colL === colH);
+            
+            let limitVal = getLimit(ref, tp, relDir);
+            let isFailed = limitVal !== null && hs > limitVal;
+            let titleColor = isFailed ? 'var(--danger)' : 'var(--safe)';
+            let statusText = isFailed ? 'FAILED' : 'SAFE';
+            
+            html += `
+            <div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; margin-bottom:15px; border-left:4px solid ${titleColor}; position:relative;">
+                <div style="position:sticky; top:-15px; background:#0b1120; padding:10px; margin:-10px -10px 10px -10px; border-radius:6px 6px 0 0; border-bottom:1px solid #334155; z-index:10; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                    <span style="color:${titleColor}; font-weight:900; text-transform:uppercase; font-size:0.95rem;">${ref.replace(/_/g, ' ')} [${statusText}]</span><br>
+                    <span style="font-size:0.75rem; line-height:1.4; display:inline-block; margin-top:4px; color:#cbd5e1;">
+                        <strong>Active Force:</strong> ${failType} (Hs: <span style="color:${isFailed ? 'var(--danger)' : '#fff'}">${hs.toFixed(1)}m</span> | Tp: ${tp.toFixed(1)}s | Rel Dir: ${Math.round(relDir)}°)<br>
+                        <strong style="color:${titleColor}">Calculated Limit:</strong> <span style="font-weight:900; font-size:0.85rem;">${limitVal !== null ? limitVal.toFixed(2) + 'm' : 'No Data'}</span> ${!isExact && limitVal !== null ? '<span style="color:#94a3b8;">(Interpolated)</span>' : ''}
+                    </span>
+                </div>
+                <div style="overflow-x:auto; background:#020617; border-radius:4px; padding:4px; margin-top:10px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.65rem; text-align:center; color:#fff; white-space:nowrap;">
+                        <tr><th style="border:1px solid #334155; padding:6px; color:var(--accent); background:#0f172a;">Tp \\ Rel°</th>`;
+            
+            for(let i=0; i<12; i++) {
+                let isCol = (i === colL || i === colH) ? 'background:rgba(255,255,255,0.05);' : '';
+                html += `<th style="border:1px solid #334155; padding:6px; background:#0f172a; ${isCol}">${i*30}°</th>`;
             }
-            $('alert-modal-content').innerHTML = html;
-            $('alert-modal').style.display = 'flex';
-        }
+            html += `</tr>`;
+
+            rowKeys.forEach(r => {
+                let isRow = (r === tpL || r === tpH) ? 'background:rgba(255,255,255,0.05);' : '';
+                html += `<tr style="${isRow}"><td style="border:1px solid #334155; padding:6px; font-weight:bold; color:var(--accent); background:#0f172a;">${r}s</td>`;
+                
+                for(let c=0; c<12; c++) {
+                    let val = matrix[r][c];
+                    let displayVal = val === null ? 'X' : val.toFixed(2);
+                    let isBoundingNode = (r === tpL || r === tpH) && (c === colL || c === colH);
+                    let bg = 'transparent'; let fw = 'normal'; let borderStyle = '1px solid #334155';
+
+                    if (isBoundingNode) {
+                        fw = '900';
+                        if (isExact) {
+                            bg = isFailed ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.7)';
+                            borderStyle = isFailed ? '2px solid #fca5a5' : '2px solid #6ee7b7';
+                        } else {
+                            bg = isFailed ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+                            borderStyle = isFailed ? '2px dashed #ef4444' : '2px dashed #10b981';
+                        }
+                    }
+                    html += `<td style="border:${borderStyle}; padding:6px; background:${bg}; font-weight:${fw};">${displayVal}</td>`;
+                }
+                html += `</tr>`;
+            });
+            html += `</table></div></div>`;
+        });
+        html += `<div style="height: 200px; width: 100%;"></div>`;
+    }
+    $('alert-modal-content').innerHTML = html;
+    $('alert-modal').style.display = 'flex';
+}
 
 		// 7. Print Engine
         function printPlan() {
-            function formatTime(offsetHours) {
-                let d = new Date(state.start);
-                d.setMinutes(d.getMinutes() + (offsetHours * 60));
-                return String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0') + " " + String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0');
+    function formatTime(offsetHours) {
+        let d = new Date(state.start);
+        d.setMinutes(d.getMinutes() + (offsetHours * 60));
+        return String(d.getMonth() + 1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0') + " " + String(d.getHours()).padStart(2, '0') + ":" + String(d.getMinutes()).padStart(2, '0');
+    }
+
+    function getHeatmapGradient(op, wx) {
+        let stops = [];
+        let geoCheck = checkGeographicLimit(op, wx);
+        for(let h = 0; h <= 360; h += 5) {
+            let stern = (h + 180) % 360;
+            let relSea = (stern - wx.seaDir + 360) % 360;
+            let relSw = (stern - wx.swDir + 360) % 360;
+            let limSea = getMinLimit(op.refs, wx.seaTp, relSea);
+            let limSw = getMinLimit(op.refs, wx.swTp, relSw);
+            
+            let isSafe = true; let isWarning = false;
+            if (limSea !== null && limSea !== 99) {
+                if (wx.seaHs > limSea) isSafe = false; else if (wx.seaHs >= limSea * 0.8) isWarning = true; 
             }
-
-            function getHeatmapGradient(op, wx) {
-                let stops = [];
-                let geoCheck = checkGeographicLimit(op, wx);
-                for(let h = 0; h <= 360; h += 5) {
-                    let stern = (h + 180) % 360;
-                    let relSea = (stern - wx.seaDir + 360) % 360;
-                    let relSw = (stern - wx.swDir + 360) % 360;
-                    let limSea = getMinLimit(op.refs, wx.seaTp, relSea);
-                    let limSw = getMinLimit(op.refs, wx.swTp, relSw);
-                    
-                    let isSafe = true; let isWarning = false;
-                    if (limSea !== null && limSea !== 99) {
-                        if (wx.seaHs > limSea) isSafe = false; else if (wx.seaHs >= limSea * 0.8) isWarning = true; 
-                    }
-                    if (limSw !== null && limSw !== 99) {
-                        if (wx.swHs > limSw) isSafe = false; else if (wx.swHs >= limSw * 0.8) isWarning = true;
-                    }
-                    if (geoCheck.failed) isSafe = false; else if (geoCheck.warning) isWarning = true;
-
-                    let color = 'rgba(16, 185, 129, 0.6)'; 
-                    if (!isSafe) color = 'rgba(239, 68, 68, 0.8)'; 
-                    else if (isWarning) color = 'rgba(245, 158, 11, 0.8)'; 
-                    stops.push(`${color} ${h}deg`);
-                }
-                return `conic-gradient(from 0deg, ${stops.join(', ')})`;
+            if (limSw !== null && limSw !== 99) {
+                if (wx.swHs > limSw) isSafe = false; else if (wx.swHs >= limSw * 0.8) isWarning = true;
             }
+            if (geoCheck.failed) isSafe = false; else if (geoCheck.warning) isWarning = true;
 
-            function getLabelCoords(dir, radius) {
-                let rad = (dir - 90) * Math.PI / 180;
-                return {
-                    x: 250 + radius * Math.cos(rad),
-                    y: 250 + radius * Math.sin(rad)
-                };
-            }
-
-            let html = `
-                <style>
-                    @media print {
-                        @page { size: A4 landscape; margin: 10mm; }
-                        body { background: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Inter', sans-serif;}
-                        .radar-text { font-family: 'Inter', system-ui, sans-serif; font-size: 24px; font-weight: 900; }
-                    }
-                </style>
-                <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #0f172a; padding-bottom:8px; margin-bottom:15px;">
-                    <div>
-                        <h1 style="margin:0 0 2px 0; font-size:1.4rem; color:#0f172a; text-transform:uppercase;">Operational Summary</h1>
-                        <div style="font-size:0.8rem; color:#475569;"><strong>Mission Start:</strong> ${$('mission-start').value.replace('T', ' ')}</div>
-                    </div>
-                </div>`;
-
-            if (state.wx.length === 0 || state.ops.length === 0) { 
-                html += `<p style="text-align:center; padding: 20px;">Missing Operations or Weather Data. Please populate the timeline.</p>`; 
-            } else {
-                // SURGICAL FIX: Generate a timeline segment for every overlap of Ops and Wx
-                let printSegments = [];
-                state.ops.forEach(op => {
-                    state.wx.forEach(wx => {
-                        let segStart = Math.max(op.start, wx.start);
-                        let segEnd = Math.min(op.end, wx.end);
-                        // If segStart < segEnd, these two blocks overlap in time
-                        if (segStart < segEnd) { 
-                            printSegments.push({ activeOp: op, w: wx, pStart: segStart, pEnd: segEnd });
-                        }
-                    });
-                });
-                
-                // Sort chronologically
-                printSegments.sort((a, b) => a.pStart - b.pStart);
-
-                printSegments.forEach(seg => {
-                    let activeOp = seg.activeOp;
-                    let w = seg.w;
-                    let pStart = seg.pStart;
-                    let pEnd = seg.pEnd;
-                    
-                    let bestHdg = getOptimalHdg(activeOp, w);
-                    let stern = (bestHdg + 180) % 360;
-                    let relSea = (stern - w.seaDir + 360) % 360;
-                    let relSw = (stern - w.swDir + 360) % 360;
-                    
-                    let minLimSea = 999; let culpritSea = '';
-                    let minLimSw = 999; let culpritSw = '';
-                    
-                    activeOp.refs.forEach(ref => {
-                        if (ref === 'NONE') return;
-                        let lSea = getLimit(ref, w.seaTp, relSea);
-                        let lSw = getLimit(ref, w.swTp, relSw);
-                        if (lSea !== null && lSea < minLimSea) { minLimSea = lSea; culpritSea = ref.replace(/_/g, ' '); }
-                        if (lSw !== null && lSw < minLimSw) { minLimSw = lSw; culpritSw = ref.replace(/_/g, ' '); }
-                    });
-
-                    let isFailed = false;
-                    let seaBg = "transparent", swBg = "transparent", wBg = "transparent", cBg = "transparent";
-                    let seaNote = "", swNote = "", wNote = "", cNote = "";
-
-                    if (minLimSea !== 999 && w.seaHs > minLimSea) { isFailed = true; seaBg = "#fef2f2"; seaNote = `<br><span style="font-size:0.65rem; color:#dc2626; font-weight:bold; display:block; margin-top:2px;">EXCEEDED: ${culpritSea} (Max ${minLimSea.toFixed(1)}m)</span>`; }
-                    if (minLimSw !== 999 && w.swHs > minLimSw) { isFailed = true; swBg = "#fef2f2"; swNote = `<br><span style="font-size:0.65rem; color:#dc2626; font-weight:bold; display:block; margin-top:2px;">EXCEEDED: ${culpritSw} (Max ${minLimSw.toFixed(1)}m)</span>`; }
-                    
-                    let geoCheck = checkGeographicLimit(activeOp, w);
-                    if (geoCheck.failed) {
-                        isFailed = true;
-                        if (activeOp.limType === 'WIND') { wBg = "#fef2f2"; wNote = `<br><span style="font-size:0.65rem; color:#dc2626; font-weight:bold; display:block; margin-top:2px;">EXCEEDED: Max ${activeOp.limVal.toFixed(1)}k</span>`; }
-                        if (activeOp.limType === 'CURR') { cBg = "#fef2f2"; cNote = `<br><span style="font-size:0.65rem; color:#dc2626; font-weight:bold; display:block; margin-top:2px;">EXCEEDED: Max ${activeOp.limVal.toFixed(1)}k</span>`; }
-                    }
-
-                    let statusColor = isFailed ? '#dc2626' : '#10b981';
-                    let hdgStatusColor = isFailed ? '#dc2626' : '#10b981';
-                    let gradient = getHeatmapGradient(activeOp, w);
-                    
-                    let hdgText = activeOp.hdgMode === "0" ? `Strict Lock: ${activeOp.fixedHdg}°` : `Target: ${activeOp.fixedHdg}° (±${activeOp.hdgMode}°)`;
-                    let dirLabel = activeOp.limDir === 'ALL' ? 'ALL' : `${activeOp.limDir}°`;
-                    let limText = activeOp.hasLim ? `${activeOp.limType} max ${activeOp.limVal.toFixed(1)} <br><span style="color:#64748b; font-size:0.65rem;">(Dir: ${dirLabel} ±${activeOp.limTol}°)</span>` : "None";
-                    let refsText = activeOp.refs.join('<br><span style="color:#64748b;">+ ').replace(/_/g, ' ');
-
-                    let wC = getLabelCoords(w.wDir, 270);
-                    let seaC = getLabelCoords(w.seaDir, 270);
-                    let swC = getLabelCoords(w.swDir, 270);
-                    let cC = getLabelCoords(w.cDir, 270);
-
-                    let radarHTML = `
-                    <div style="position:relative; width:130px; height:130px; background:transparent;">
-                        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:#0f172a; border-radius:50%; border:1px solid #334155;"></div>
-                        <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: ${gradient}; -webkit-mask: radial-gradient(transparent 58%, black 65%); mask: radial-gradient(transparent 58%, black 65%); opacity: 0.9; border-radius:50%;"></div>
-                        <svg viewBox="-150 -150 800 800" style="position:absolute; top:-38%; left:-38%; width:176%; height:176%; pointer-events:none; overflow:visible;">
-                            <circle cx="250" cy="250" r="210" fill="none" stroke="#334155" stroke-width="2"/>
-                            <circle cx="250" cy="250" r="140" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
-                            
-                            <g transform="rotate(${w.wDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#ef4444"/></g>
-                            <text x="${wC.x}" y="${wC.y}" fill="#ef4444" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.wSpd.toFixed(1))}k</text>
-                            
-                            <g transform="rotate(${w.seaDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#0ea5e9"/></g>
-                            <text x="${seaC.x}" y="${seaC.y}" fill="#0ea5e9" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.seaHs.toFixed(1))}m</text>
-                            
-                            <g transform="rotate(${w.swDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#6366f1"/></g>
-                            <text x="${swC.x}" y="${swC.y}" fill="#6366f1" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.swHs.toFixed(1))}m</text>
-                            
-                            <g transform="rotate(${w.cDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#d946ef"/></g>
-                            <text x="${cC.x}" y="${cC.y}" fill="#d946ef" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.cSpd.toFixed(1))}k</text>
-                            
-                            <g transform="rotate(${bestHdg}, 250, 250)">
-                                <polygon points="235,390 235,170 250,120 265,170 265,390" fill="none" stroke="#f8fafc" stroke-width="4"/>
-                                <circle cx="250" cy="250" r="4" fill="#f8fafc"/>
-                            </g>
-                        </svg>
-                    </div>`;
-
-                    html += `
-                    <div style="display:flex; border:1px solid #cbd5e1; border-left:8px solid ${statusColor}; background:#ffffff; margin-bottom:12px; page-break-inside:avoid; overflow:hidden;">
-                        
-                        <div style="width:200px; padding:10px 15px; display:flex; justify-content:center; align-items:center; border-right:1px solid #e2e8f0;">
-                            ${radarHTML}
-                        </div>
-
-                        <div style="flex:1; padding:10px 20px; display:flex; flex-direction:column; justify-content:center; gap:8px;">
-                            
-                            <div>
-                                <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; table-layout:fixed;">
-                                    <tr>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Task & Timeline</th>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Analysis Data</th>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Heading Limit & Actual</th>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Vessel Limit</th>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">
-                                            <strong style="color:#0284c7; display:block; margin-bottom:2px;">${activeOp.label}</strong>
-                                            <span style="font-weight:700; color:#475569;">T+${w.start.toFixed(1)} ➔ T+${w.end.toFixed(1)}</span><br>
-                                            <span style="color:#64748b; font-size:0.65rem;">${formatTime(w.start)} ➔ ${formatTime(w.end)}</span>
-                                        </td>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">
-                                            <span style="font-weight:600;">${refsText}</span>
-                                        </td>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">
-                                            ${hdgText}<br>
-                                            <div style="margin-top:4px;"><strong style="color:${hdgStatusColor};">ACTUAL HDG: ${Math.round(bestHdg).toString().padStart(3,'0')}°</strong></div>
-                                        </td>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">${limText}</td>
-                                    </tr>
-                                </table>
-                            </div>
-
-                            <div>
-                                <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; table-layout:fixed;">
-                                    <tr>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#ef4444; font-weight:800; width:25%;">WIND <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/KTS)</span></th>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#0ea5e9; font-weight:800; width:25%;">SEA <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/HS/TP)</span></th>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#6366f1; font-weight:800; width:25%;">SWELL <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/HS/TS)</span></th>
-                                        <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#d946ef; font-weight:800; width:25%;">CURR <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/KTS)</span></th>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${wBg}; color:#0f172a;">${w.wDir}° / ${w.wSpd.toFixed(1)}k ${wNote}</td>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${seaBg}; color:#0f172a;">${w.seaDir}° / ${w.seaHs.toFixed(1)}m / ${w.seaTp.toFixed(1)}s ${seaNote}</td>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${swBg}; color:#0f172a;">${w.swDir}° / ${w.swHs.toFixed(1)}m / ${w.swTp.toFixed(1)}s ${swNote}</td>
-                                        <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${cBg}; color:#0f172a;">${w.cDir}° / ${w.cSpd.toFixed(1)}k ${cNote}</td>
-                                    </tr>
-                                </table>
-                            </div>
-
-                        </div>
-                    </div>`;
-                });
-            }
-            $('print-view').innerHTML = html;
-            window.print();
+            let color = 'rgba(16, 185, 129, 0.6)'; 
+            if (!isSafe) color = 'rgba(239, 68, 68, 0.8)'; 
+            else if (isWarning) color = 'rgba(245, 158, 11, 0.8)'; 
+            stops.push(`${color} ${h}deg`);
         }
+        return `conic-gradient(from 0deg, ${stops.join(', ')})`;
+    }
+
+    function getLabelCoords(dir, radius) {
+        let rad = (dir - 90) * Math.PI / 180;
+        return {
+            x: 250 + radius * Math.cos(rad),
+            y: 250 + radius * Math.sin(rad)
+        };
+    }
+
+    let html = `
+        <style>
+            @media print {
+                @page { size: A4 landscape; margin: 10mm; }
+                body { background: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Inter', sans-serif;}
+                .radar-text { font-family: 'Inter', system-ui, sans-serif; font-size: 24px; font-weight: 900; }
+            }
+        </style>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #0f172a; padding-bottom:8px; margin-bottom:15px;">
+            <div>
+                <h1 style="margin:0 0 2px 0; font-size:1.4rem; color:#0f172a; text-transform:uppercase;">Operational Summary</h1>
+                <div style="font-size:0.8rem; color:#475569;"><strong>Mission Start:</strong> ${$('mission-start').value.replace('T', ' ')}</div>
+            </div>
+        </div>`;
+
+    if (state.wx.length === 0 || state.ops.length === 0) { 
+        html += `<p style="text-align:center; padding: 20px;">Missing Operations or Weather Data. Please populate the timeline.</p>`; 
+    } else {
+        let printSegments = [];
+        state.ops.forEach(op => {
+            state.wx.forEach(wx => {
+                let segStart = Math.max(op.start, wx.start);
+                let segEnd = Math.min(op.end, wx.end);
+                if (segStart < segEnd) { 
+                    printSegments.push({ activeOp: op, w: wx, pStart: segStart, pEnd: segEnd });
+                }
+            });
+        });
+        
+        printSegments.sort((a, b) => a.pStart - b.pStart);
+
+        printSegments.forEach(seg => {
+            let activeOp = seg.activeOp;
+            let w = seg.w;
+            
+            let bestHdg = getOptimalHdg(activeOp, w);
+            let stern = (bestHdg + 180) % 360;
+            let relSea = (stern - w.seaDir + 360) % 360;
+            let relSw = (stern - w.swDir + 360) % 360;
+            
+            let minLimSea = 999; let culpritSea = '';
+            let minLimSw = 999; let culpritSw = '';
+            
+            activeOp.refs.forEach(ref => {
+                if (ref === 'NONE') return;
+                let lSea = getLimit(ref, w.seaTp, relSea);
+                let lSw = getLimit(ref, w.swTp, relSw);
+                if (lSea !== null && lSea < minLimSea) { minLimSea = lSea; culpritSea = ref.replace(/_/g, ' '); }
+                if (lSw !== null && lSw < minLimSw) { minLimSw = lSw; culpritSw = ref.replace(/_/g, ' '); }
+            });
+
+            // --- REFACTORED FAILURE ENGINE FOR PRINT ---
+            let isFailed = false;
+            let seaBg = "transparent", swBg = "transparent", wBg = "transparent", cBg = "transparent";
+            let seaNote = "", swNote = "", wNote = "", cNote = "";
+
+            // 1. Check Matrix Sea/Swell
+            if (minLimSea !== 999 && w.seaHs > minLimSea) { isFailed = true; seaBg = "#fef2f2"; seaNote = `<br><span style="font-size:0.6rem; color:#dc2626;">EXCEEDED: ${culpritSea}</span>`; }
+            if (minLimSw !== 999 && w.swHs > minLimSw) { isFailed = true; swBg = "#fef2f2"; swNote = `<br><span style="font-size:0.6rem; color:#dc2626;">EXCEEDED: ${culpritSw}</span>`; }
+            
+            // 2. Check Global Hs Limit (Correcting the 'Wind' erroneous trigger)
+            if (activeOp.hasWaveLimit && w.seaHs > activeOp.maxHs) {
+                isFailed = true;
+                seaBg = "#fef2f2";
+                seaNote += `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">GLOBAL HS > ${activeOp.maxHs}m</span>`;
+            }
+
+            // 3. Check Sector Limits (Wind/Curr)
+            let geoCheck = checkGeographicLimit(activeOp, w);
+            // We only look at specific alerts to avoid cross-wiring
+            geoCheck.alertList.forEach(alert => {
+                if (!alert.isWarning) {
+                    isFailed = true;
+                    if (alert.type === 'WIND') { wBg = "#fef2f2"; wNote = `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">LIMIT: ${activeOp.limVal}k</span>`; }
+                    if (alert.type === 'CURR') { cBg = "#fef2f2"; cNote = `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">LIMIT: ${activeOp.limVal}k</span>`; }
+                }
+            });
+
+            let statusColor = isFailed ? '#dc2626' : '#10b981';
+            let hdgStatusColor = isFailed ? '#dc2626' : '#10b981';
+            let gradient = getHeatmapGradient(activeOp, w);
+            
+            let hdgText = activeOp.hdgMode === "0" ? `Strict Lock: ${activeOp.fixedHdg}°` : `Target: ${activeOp.fixedHdg}° (±${activeOp.hdgMode}°)`;
+            let dirLabel = activeOp.limDir === 'ALL' ? 'ALL' : `${activeOp.limDir}°`;
+            let limText = activeOp.hasLim ? `${activeOp.limType} max ${activeOp.limVal.toFixed(1)} <br><span style="color:#64748b; font-size:0.65rem;">(Dir: ${dirLabel} ±${activeOp.limTol}°)</span>` : "None";
+            if (activeOp.hasWaveLimit) limText += `<br><span style="color:var(--safe); font-size:0.65rem;">Max Hs: ${activeOp.maxHs}m</span>`;
+            
+            let refsText = activeOp.refs.join('<br><span style="color:#64748b;">+ ').replace(/_/g, ' ');
+
+            let wC = getLabelCoords(w.wDir, 270);
+            let seaC = getLabelCoords(w.seaDir, 270);
+            let swC = getLabelCoords(w.swDir, 270);
+            let cC = getLabelCoords(w.cDir, 270);
+
+            let radarHTML = `
+            <div style="position:relative; width:130px; height:130px; background:transparent;">
+                <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:#0f172a; border-radius:50%; border:1px solid #334155;"></div>
+                <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: ${gradient}; -webkit-mask: radial-gradient(transparent 58%, black 65%); mask: radial-gradient(transparent 58%, black 65%); opacity: 0.9; border-radius:50%;"></div>
+                <svg viewBox="-150 -150 800 800" style="position:absolute; top:-38%; left:-38%; width:176%; height:176%; pointer-events:none; overflow:visible;">
+                    <circle cx="250" cy="250" r="210" fill="none" stroke="#334155" stroke-width="2"/>
+                    <circle cx="250" cy="250" r="140" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="4,4"/>
+                    <g transform="rotate(${w.wDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#ef4444"/></g>
+                    <text x="${wC.x}" y="${wC.y}" fill="#ef4444" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.wSpd.toFixed(1))}k</text>
+                    <g transform="rotate(${w.seaDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#0ea5e9"/></g>
+                    <text x="${seaC.x}" y="${seaC.y}" fill="#0ea5e9" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.seaHs.toFixed(1))}m</text>
+                    <g transform="rotate(${w.swDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#6366f1"/></g>
+                    <text x="${swC.x}" y="${swC.y}" fill="#6366f1" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.swHs.toFixed(1))}m</text>
+                    <g transform="rotate(${w.cDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#d946ef"/></g>
+                    <text x="${cC.x}" y="${cC.y}" fill="#d946ef" class="radar-text" text-anchor="middle" dominant-baseline="middle">${Number(w.cSpd.toFixed(1))}k</text>
+                    <g transform="rotate(${bestHdg}, 250, 250)">
+                        <polygon points="235,390 235,170 250,120 265,170 265,390" fill="none" stroke="#f8fafc" stroke-width="4"/>
+                        <circle cx="250" cy="250" r="4" fill="#f8fafc"/>
+                    </g>
+                </svg>
+            </div>`;
+
+            html += `
+            <div style="display:flex; border:1px solid #cbd5e1; border-left:8px solid ${statusColor}; background:#ffffff; margin-bottom:12px; page-break-inside:avoid; overflow:hidden;">
+                <div style="width:200px; padding:10px 15px; display:flex; justify-content:center; align-items:center; border-right:1px solid #e2e8f0;">
+                    ${radarHTML}
+                </div>
+                <div style="flex:1; padding:10px 20px; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+                    <div>
+                        <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; table-layout:fixed;">
+                            <tr>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Task & Timeline</th>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Analysis Data</th>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Heading Limit & Actual</th>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Vessel Limit</th>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">
+                                    <strong style="color:#0284c7; display:block; margin-bottom:2px;">${activeOp.label}</strong>
+                                    <span style="font-weight:700; color:#475569;">T+${seg.pStart.toFixed(1)} ➔ T+${seg.pEnd.toFixed(1)}</span><br>
+                                    <span style="color:#64748b; font-size:0.65rem;">${formatTime(seg.pStart)} ➔ ${formatTime(seg.pEnd)}</span>
+                                </td>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">
+                                    <span style="font-weight:600;">${refsText}</span>
+                                </td>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">
+                                    ${hdgText}<br>
+                                    <div style="margin-top:4px;"><strong style="color:${hdgStatusColor};">ACTUAL HDG: ${Math.round(bestHdg).toString().padStart(3,'0')}°</strong></div>
+                                </td>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; color:#0f172a;">${limText}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div>
+                        <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; table-layout:fixed;">
+                            <tr>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#ef4444; font-weight:800; width:25%;">WIND <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/KTS)</span></th>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#0ea5e9; font-weight:800; width:25%;">SEA <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/HS/TP)</span></th>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#6366f1; font-weight:800; width:25%;">SWELL <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/HS/TS)</span></th>
+                                <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#d946ef; font-weight:800; width:25%;">CURR <span style="font-size:0.6rem; color:#64748b; font-weight:600;">(DIR/KTS)</span></th>
+                            </tr>
+                            <tr>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${wBg}; color:#0f172a;">${w.wDir}° / ${w.wSpd.toFixed(1)}k ${wNote}</td>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${seaBg}; color:#0f172a;">${w.seaDir}° / ${w.seaHs.toFixed(1)}m / ${w.seaTp.toFixed(1)}s ${seaNote}</td>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${swBg}; color:#0f172a;">${w.swDir}° / ${w.swHs.toFixed(1)}m / ${w.swTp.toFixed(1)}s ${swNote}</td>
+                                <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top; background:${cBg}; color:#0f172a;">${w.cDir}° / ${w.cSpd.toFixed(1)}k ${cNote}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+        });
+    }
+    $('print-view').innerHTML = html;
+    window.print();
+}
 
         // 8. Simulation & UI Logic
         function toggleSimSpeed() {
@@ -1299,47 +1493,63 @@
 
         // 9. Operations & Wx Add/Edit Logic
         function addPhase() {
-            const sel1 = $('op-sel'); const sel2 = $('op-sel-2');
-            if(sel1.value === "NONE" || sel1.options[sel1.selectedIndex].text === "-- Awaiting Data --") { 
-                alert("Please LOAD FILES first!"); return; 
-            }
-            
-            // Decoupled task naming logic with smart fallback
-            let customName = '';
-            if($('op-name')) customName = $('op-name').value.trim();
-            // If the user leaves the name blank, default to the Analysis Name!
-            const finalLabel = customName !== "" ? customName : sel1.options[sel1.selectedIndex].text;
-            
-            const refs = [sel1.value]; if (sel2 && sel2.value !== 'NONE') refs.push(sel2.value);
-            const start = state.ops.length ? state.ops[state.ops.length-1].end : 0;
-            
-            // CRITICAL FIX: ALL properties restored!
-            state.ops.push({ 
-                label: finalLabel, 
-                refs: refs,
-                start: start, 
-                end: start + (parseFloat($('op-dur').value) || 0), 
-                hdgMode: $('op-hdg-mode').value, 
-                fixedHdg: (parseInt($('op-fixed-hdg').value) || 0),
-                hasLim: $('op-has-limit').checked, 
-                limType: $('op-lim-type').value, 
-                limDir: parseInt($('op-lim-dir').value) || 0, 
-                limTol: parseInt($('op-lim-tol').value) || 90,
-                limVal: parseFloat($('op-lim-val').value) || 0
-            });
-            
-            sync(); 
-            if($('op-name')) $('op-name').value = ''; 
-            $('op-dur').focus(); 
-            $('op-hdg-mode').value = '90'; 
-            $('op-fixed-hdg').value = 0; 
-            $('op-has-limit').checked = false; 
-            $('op-lim-wrap').style.display = 'none'; 
-            $('op-lim-val').value = 20; 
-            if($('op-lim-dir')) $('op-lim-dir').value = 0;
-            if($('op-lim-tol')) $('op-lim-tol').value = 90;
-            sel2.value = 'NONE';
-        }
+			const sel1 = $('op-sel'); const sel2 = $('op-sel-2');
+			if(sel1.value === "NONE" || sel1.options[sel1.selectedIndex].text === "-- Awaiting Data --") { 
+				alert("Please LOAD FILES first!"); return; 
+			}
+			
+			// Decoupled task naming logic with smart fallback
+			let customName = '';
+			if($('op-name')) customName = $('op-name').value.trim();
+			// If the user leaves the name blank, default to the Analysis Name!
+			const finalLabel = customName !== "" ? customName : sel1.options[sel1.selectedIndex].text;
+			
+			const refs = [sel1.value]; if (sel2 && sel2.value !== 'NONE') refs.push(sel2.value);
+			const start = state.ops.length ? state.ops[state.ops.length-1].end : 0;
+			
+			// CRITICAL FIX: ALL properties restored + Global Hs Limit Added
+			state.ops.push({ 
+    label: finalLabel, 
+    refs: refs,
+    start: start, 
+    end: start + (parseFloat($('op-dur').value) || 0), 
+    hdgMode: $('op-hdg-mode').value, 
+    fixedHdg: (parseInt($('op-fixed-hdg').value) || 0),
+    
+    // --- THE FIX: Explicitly capture the Global Hs Limit state ---
+    hasWaveLimit: $('op-has-wave-limit').checked,
+    maxHs: parseFloat($('op-max-hs').value) || 2.5,
+
+    hasLim: $('op-has-limit').checked, 
+    limType: $('op-lim-type').value, 
+    limVal: parseFloat($('op-lim-val').value) || 20,
+    limDir: parseInt($('op-lim-dir').value) || 0, 
+    limTol: parseInt($('op-lim-tol').value) || 90
+});
+			
+			sync(); 
+			
+			// 1. Reset Task Name and Duration
+    if($('op-name')) $('op-name').value = ''; 
+    $('op-dur').value = 4; // Or your preferred default duration
+
+    // 2. Reset Global Hs Limit to OFF
+    $('op-has-wave-limit').checked = false; // Set to false to fix your earlier issue
+    $('op-wave-wrap').style.display = 'none';
+    $('op-max-hs').value = 2.5;
+
+    // 3. Reset Vessel Weather Limit to OFF
+    $('op-has-limit').checked = false;
+    $('op-lim-wrap').style.display = 'none';
+    $('op-lim-val').value = 20;
+    
+    // 4. Reset Heading defaults
+    $('op-hdg-mode').value = '90';
+    $('op-fixed-hdg').value = 0;
+
+    // 5. Move focus back to the name for the next entry
+    if($('op-name')) $('op-name').focus();
+}
 
         function addWx() {
             const start = state.wx.length ? state.wx[state.wx.length-1].end : 0;
@@ -1354,23 +1564,42 @@
         }
 
         function resetOps() { state.ops = []; state.t = 0; sync(); }
-        function resetWx() { state.wx = []; sync(); }
+        function resetWx() { state.wx = []; state.tide = [];
+		if ($('svg-tide')) $('svg-tide').innerHTML = ''; 
+		sync(); }
 
         function openOpEdit(i) {
-            state.editOpIdx = i; closeOverlays(); const p = state.ops[i];
-            $('ed-op-name').value = p.label; $('ed-op-dur').value = p.end - p.start;
-            $('ed-op-sel').value = p.refs[0]; 
-            $('ed-op-sel-2').value = (p.refs && p.refs.length > 1) ? p.refs[1] : 'NONE';
-            $('ed-op-hdg-mode').value = p.hdgMode || '45';
-            $('ed-op-hdg').value = p.fixedHdg || 0; 
-            $('ed-op-has-limit').checked = p.hasLim; $('ed-op-lim-wrap').style.display = p.hasLim ? 'block' : 'none';
-            $('ed-op-lim-type').value = p.limType || 'WIND'; 
-            if($('ed-op-lim-dir')) $('ed-op-lim-dir').value = p.limDir || 0; 
-            if($('ed-op-lim-tol')) $('ed-op-lim-tol').value = p.limTol || 90;
-            $('ed-op-lim-val').value = p.limVal || 0;
-            $('op-edit-panel').classList.add('active');
-            updateUI(); 
-        }
+    state.editOpIdx = i; 
+    closeOverlays(); 
+    const p = state.ops[i];
+
+    // Standard Fields
+    $('ed-op-name').value = p.label; 
+    $('ed-op-dur').value = p.end - p.start;
+    $('ed-op-sel').value = p.refs[0]; 
+    $('ed-op-sel-2').value = (p.refs && p.refs.length > 1) ? p.refs[1] : 'NONE';
+    $('ed-op-hdg-mode').value = p.hdgMode || '45';
+    $('ed-op-hdg').value = p.fixedHdg || 0; 
+
+    // --- FIX: Loading Global Hs Limit State ---
+    const hasWave = !!p.hasWaveLimit; // Force boolean
+    $('ed-op-has-wave-limit').checked = hasWave;
+    $('ed-op-wave-wrap').style.display = hasWave ? 'flex' : 'none';
+    $('ed-op-max-hs').value = p.maxHs || 2.5;
+
+    // Loading Vessel Weather Limit State
+    $('ed-op-has-limit').checked = p.hasLim; 
+    $('ed-op-lim-wrap').style.display = p.hasLim ? 'block' : 'none';
+    $('ed-op-lim-type').value = p.limType || 'WIND'; 
+    
+    if($('ed-op-lim-dir')) $('ed-op-lim-dir').value = p.limDir || 0; 
+    if($('ed-op-lim-tol')) $('ed-op-lim-tol').value = p.limTol || 90;
+    $('ed-op-lim-val').value = p.limVal || 0;
+
+    // Open the panel
+    $('op-edit-panel').classList.add('active');
+    updateUI(); 
+}
 
         function openWxEdit(i) {
             state.editWxIdx = i; closeOverlays(); state.isEditWxOpen = true; const w = state.wx[i];
@@ -1401,26 +1630,38 @@
             closeOverlays(); sync();
         }
         
-        function saveOpEdit() {
-            const p = state.ops[state.editOpIdx];
-            p.label = $('ed-op-name').value || $('ed-op-sel').options[$('ed-op-sel').selectedIndex].text; 
-            p.hdgMode = $('ed-op-hdg-mode').value; p.fixedHdg = parseInt($('ed-op-hdg').value) || 0; 
-            p.hasLim = $('ed-op-has-limit').checked; 
-            p.limType = $('ed-op-lim-type').value; 
-            p.limDir = parseInt($('ed-op-lim-dir').value) || 0; 
-            p.limTol = parseInt($('ed-op-lim-tol').value) || 90;
-            p.limVal = parseFloat($('ed-op-lim-val').value) || 0;
-            
-            const sel1 = $('ed-op-sel').value;
-            const sel2 = $('ed-op-sel-2').value; 
-            p.refs = sel2 === 'NONE' ? [sel1] : [sel1, sel2];
-            
-            p.end = p.start + (parseFloat($('ed-op-dur').value) || 0);
-            for(let j=state.editOpIdx+1; j<state.ops.length; j++) {
-                const d = state.ops[j].end - state.ops[j].start; state.ops[j].start = state.ops[j-1].end; state.ops[j].end = state.ops[j].start + d;
-            }
-            closeOverlays(); sync();
-        }
+		function saveOpEdit() {
+			const p = state.ops[state.editOpIdx];
+			p.label = $('ed-op-name').value || $('ed-op-sel').options[$('ed-op-sel').selectedIndex].text; 
+			p.hdgMode = $('ed-op-hdg-mode').value; 
+			p.fixedHdg = parseInt($('ed-op-hdg').value) || 0; 
+			
+			// --- NEW: GLOBAL HS LIMIT ---
+			p.hasWaveLimit = $('ed-op-has-wave-limit').checked;
+			p.maxHs = parseFloat($('ed-op-max-hs').value) || 2.5;
+
+			// --- EXISTING: SECTOR LIMIT ---
+			p.hasLim = $('ed-op-has-limit').checked; 
+			p.limType = $('ed-op-lim-type').value; 
+			p.limDir = parseInt($('ed-op-lim-dir').value) || 0; 
+			p.limTol = parseInt($('ed-op-lim-tol').value) || 90;
+			p.limVal = parseFloat($('ed-op-lim-val').value) || 0;
+			
+			const sel1 = $('ed-op-sel').value;
+			const sel2 = $('ed-op-sel-2').value; 
+			p.refs = sel2 === 'NONE' ? [sel1] : [sel1, sel2];
+			
+			p.end = p.start + (parseFloat($('ed-op-dur').value) || 0);
+			
+			// Recalculate subsequent task times
+			for(let j=state.editOpIdx+1; j<state.ops.length; j++) {
+				const d = state.ops[j].end - state.ops[j].start; 
+				state.ops[j].start = state.ops[j-1].end; 
+				state.ops[j].end = state.ops[j].start + d;
+			}
+			closeOverlays(); 
+			sync();
+		}
 
         function saveWxEdit() {
             const w = state.wx[state.editWxIdx]; w.end = w.start + (parseFloat($('ed-wx-dur').value) || 0);
@@ -1441,88 +1682,117 @@
 
         // 10. Sync, UI, and Event Listeners
         function sync() {
-            const maxOp = state.ops.length ? state.ops[state.ops.length-1].end : 0;
-            const maxWx = state.wx.length ? state.wx[state.wx.length-1].end : 0;
-            state.t_pop = Math.max(24, maxOp, maxWx);
-            
-            $('op-list').innerHTML = state.ops.map((o, i) => {
-                let badge = '';
-                let tol = parseInt(o.hdgMode);
-                if (isNaN(tol)) tol = 0; 
-                // BUG FIX: We are adding id="op-hdg-badge-${i}" to these spans
-                if(tol === 0) badge = `<br><span id="op-hdg-badge-${i}" style="color:var(--safe); font-size:0.6rem;">↳ 🔒 STRICT LOCK: ${o.fixedHdg}°</span>`;
-                else badge = `<br><span id="op-hdg-badge-${i}" style="color:var(--accent); font-size:0.6rem;">↳ ⚓ TGT: ${o.fixedHdg}° (±${tol}°)</span>`;
-                
-                return `
-                <div id="op-list-item-${i}" style="padding:6px; background:rgba(0,0,0,0.5); border-radius:4px; margin-bottom:4px; border-left:4px solid transparent; transition:0.2s;">
-                    🚢 ${o.label} <span style="opacity:0.5; font-family:monospace; margin-left:4px;">${(o.end-o.start).toFixed(1)}h</span>
-                    ${o.refs && o.refs.length > 1 ? `<br><span style="color:#cbd5e1; font-size:0.6rem;">↳ + ${o.refs[1].replace(/_/g, ' ')}</span>` : ''}
-                    ${badge}
-                </div>`;
-            }).join('');
-            
-            
-            $('cont-op').innerHTML = state.ops.map((d,i) => {
-                const pct = ((d.end - d.start) / state.t_pop) * 100;
-                let content = pct > 12 ? 
-                    `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; line-height:1;">
-                        <span style="font-size:0.6rem; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; color:#cbd5e1; margin-bottom:2px;">${d.label}</span>
-                        <span style="font-size:0.85rem; font-weight:900; color:#fff;">${(d.end-d.start).toFixed(1)}H</span>
-                    </div>` 
-                    : `<span style="font-size:0.8rem; font-weight:900; color:#fff;">${(d.end-d.start).toFixed(1)}H</span>`;
-                return `<div class="block op-block" ondblclick="openOpEdit(${i})" style="width:${pct}%; padding:2px;">${content}</div>`;
-            }).join('');
-            
-            $('cont-wx').innerHTML = state.wx.map((d,i) => `
-                <div class="block wx-block" ondblclick="openWxEdit(${i})" style="width:${(d.end-d.start)/state.t_pop*100}%; padding:2px 4px;">
-                    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
-                        <div style="display:flex; align-items:baseline; gap:4px; margin-bottom:2px;">
-                            <span style="font-size:0.55rem; color:#bae6fd; text-transform:uppercase; font-weight:800;">Wx Period</span>
-                            <span style="font-size:0.85rem; font-weight:950; color:#fff;">${(d.end-d.start).toFixed(1)}H</span>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2px; width:100%; font-size:0.65rem; font-weight:900;">
-                            <div style="background:rgba(239, 68, 68, 0.2); color:var(--c-wind); padding:2px; border-radius:2px; text-align:center;">${d.wSpd}k</div>
-                            <div style="background:rgba(14, 165, 233, 0.2); color:var(--c-sea); padding:2px; border-radius:2px; text-align:center;">${d.seaHs}m</div>
-                            <div style="background:rgba(99, 102, 241, 0.2); color:var(--c-swell); padding:2px; border-radius:2px; text-align:center;">${d.swHs}m</div>
-                            <div style="background:rgba(217, 70, 239, 0.2); color:var(--c-curr); padding:2px; border-radius:2px; text-align:center;">${d.cSpd}k</div>
-                        </div>
-                    </div>
+    const maxOp = state.ops.length ? state.ops[state.ops.length - 1].end : 0;
+    const maxWx = state.wx.length ? state.wx[state.wx.length - 1].end : 0;
+    state.t_pop = Math.max(24, maxOp, maxWx);
+
+    // 1. UPDATE MISSION SEQUENCE HUD (Left Sidebar)
+    $('op-list').innerHTML = state.ops.map((o, i) => {
+        // Heading Badge Logic
+        let hBadge = '';
+        let tol = parseInt(o.hdgMode);
+        if (isNaN(tol)) tol = 0;
+        if (tol === 0) {
+            hBadge = `<br><span id="op-hdg-badge-${i}" style="color:var(--safe); font-size:0.6rem;">↳ 🔒 STRICT LOCK: ${o.fixedHdg}°</span>`;
+        } else {
+            hBadge = `<br><span id="op-hdg-badge-${i}" style="color:var(--accent); font-size:0.6rem;">↳ ⚓ TGT: ${o.fixedHdg}° (±${tol}°)</span>`;
+        }
+
+        // NEW: Global Hs Limit Badge
+        let waveBadge = '';
+        if (o.hasWaveLimit) {
+            waveBadge = `<br><span style="color:var(--safe); font-size:0.6rem;">↳ 🌊 MAX HS: ${o.maxHs.toFixed(1)}m</span>`;
+        }
+
+        // NEW: Vessel Sector Limit Badge
+        let sectorBadge = '';
+        if (o.hasLim) {
+            sectorBadge = `<br><span style="color:var(--danger); font-size:0.6rem;">↳ 🚩 ${o.limType}: ${o.limVal}${o.limType === 'WIND' ? 'k' : 'k'} (${o.limDir}° ±${o.limTol}°)</span>`;
+        }
+
+        return `
+        <div id="op-list-item-${i}" style="padding:6px; background:rgba(0,0,0,0.5); border-radius:4px; margin-bottom:4px; border-left:4px solid transparent; transition:0.2s;">
+            🚢 ${o.label} <span style="opacity:0.5; font-family:monospace; margin-left:4px;">${(o.end - o.start).toFixed(1)}h</span>
+            ${o.refs && o.refs.length > 1 ? `<br><span style="color:#cbd5e1; font-size:0.6rem;">↳ + ${o.refs[1].replace(/_/g, ' ')}</span>` : ''}
+            ${waveBadge}
+            ${sectorBadge}
+            ${hBadge}
+        </div>`;
+    }).join('');
+
+    // 2. UPDATE OPERATIONAL TIMELINE TRACK
+    $('cont-op').innerHTML = state.ops.map((d, i) => {
+        const pct = ((d.end - d.start) / state.t_pop) * 100;
+        let content = pct > 12 ?
+            `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; line-height:1;">
+                <span style="font-size:0.6rem; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; color:#cbd5e1; margin-bottom:2px;">${d.label}</span>
+                <span style="font-size:0.85rem; font-weight:900; color:#fff;">${(d.end - d.start).toFixed(1)}H</span>
+            </div>`
+            : `<span style="font-size:0.8rem; font-weight:900; color:#fff;">${(d.end - d.start).toFixed(1)}H</span>`;
+        return `<div class="block op-block" ondblclick="openOpEdit(${i})" style="width:${pct}%; padding:2px;">${content}</div>`;
+    }).join('');
+
+    // 3. UPDATE WEATHER TIMELINE TRACK
+    $('cont-wx').innerHTML = state.wx.map((d, i) => {
+        let pct = ((d.end - d.start) / state.t_pop) * 100;
+        let content = '';
+
+        if (pct > 5) {
+            content = `
+                <div style="display:flex; align-items:baseline; gap:4px; margin-bottom:2px;">
+                    <span style="font-size:0.5rem; color:#bae6fd; text-transform:uppercase; font-weight:800;">Wx Period</span>
+                    <span style="font-size:0.75rem; font-weight:950; color:#fff;">${(d.end - d.start).toFixed(1)}H</span>
                 </div>
-            `).join('');
-            updateUI();
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:2px; width:100%; font-size:0.6rem; font-weight:900;">
+                    <div style="background:rgba(239, 68, 68, 0.2); color:var(--c-wind); padding:1px; border-radius:2px; text-align:center;">${Math.round(d.wSpd)}k</div>
+                    <div style="background:rgba(14, 165, 233, 0.2); color:var(--c-sea); padding:1px; border-radius:2px; text-align:center;">${d.seaHs.toFixed(1)}m</div>
+                    <div style="background:rgba(99, 102, 241, 0.2); color:var(--c-swell); padding:1px; border-radius:2px; text-align:center;">${d.swHs.toFixed(1)}m</div>
+                    <div style="background:rgba(217, 70, 239, 0.2); color:var(--c-curr); padding:1px; border-radius:2px; text-align:center;">${d.cSpd.toFixed(1)}k</div>
+                </div>`;
+        } else if (pct > 2.5) {
+            content = `
+                <div style="font-size:0.65rem; font-weight:950; color:#fff; margin-bottom:2px;">${(d.end - d.start).toFixed(0)}H</div>
+                <div style="display:flex; flex-direction:column; gap:1px; width:100%; font-size:0.55rem; font-weight:900; line-height:1;">
+                    <div style="color:var(--c-wind); text-align:center;">${Math.round(d.wSpd)}k</div>
+                    <div style="color:var(--c-sea); text-align:center;">${d.seaHs.toFixed(1)}m</div>
+                </div>`;
+        } else {
+            content = `<div style="font-size:0.5rem; font-weight:950; color:#fff;">${(d.end - d.start).toFixed(0)}H</div>`;
         }
 
-        function updateDPVector(wx) {
-            if(!wx) return;
-            let fWind = (wx.wSpd / 20), fCurr = (wx.cSpd / 1.5), fSea = (wx.seaHs / 2), fSwell = (wx.swHs / 2);
-            let rad = Math.PI / 180;
-            let pushW = (wx.wDir + 180) % 360, pushC = (wx.cDir + 180) % 360, pushSea = (wx.seaDir + 180) % 360, pushSw = (wx.swDir + 180) % 360;
+        return `
+        <div class="block wx-block" ondblclick="openWxEdit(${i})" style="width:${pct}%; padding:2px; min-width:0; overflow:hidden;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+                ${content}
+            </div>
+        </div>`;
+    }).join('');
 
-            let netX = (fWind * Math.sin(pushW * rad)) + (fCurr * Math.sin(pushC * rad)) + (fSea * Math.sin(pushSea * rad)) + (fSwell * Math.sin(pushSw * rad));
-            let netY = (fWind * Math.cos(pushW * rad)) + (fCurr * Math.cos(pushC * rad)) + (fSea * Math.cos(pushSea * rad)) + (fSwell * Math.cos(pushSw * rad));
-
-            let mag = Math.sqrt(netX*netX + netY*netY);
-            let dir = Math.atan2(netX, netY) * (180 / Math.PI); if(dir < 0) dir += 360;
-
-            let scale = Math.min(2, Math.max(0.2, mag / 1.5)); let arrowLength = 25 * scale;
-            $('net-force-arrow').setAttribute('transform', `rotate(${dir})`);
-            $('net-force-line').setAttribute('y2', -arrowLength);
-            $('net-force-head').setAttribute('points', `-6,${-arrowLength} 6,${-arrowLength} 0,${-(arrowLength + 10)}`);
-
-            let forceLabel = mag < 0.8 ? 'LOW' : (mag < 1.6 ? 'MED' : 'HIGH');
-            let color = mag < 0.8 ? 'var(--safe)' : (mag < 1.6 ? 'var(--warn)' : 'var(--danger)');
-
-            $('net-force-line').setAttribute('stroke', color); $('net-force-head').setAttribute('fill', color);
-            $('dp-force-readout').innerHTML = `${Math.round(dir).toString().padStart(3,'0')}°<br><span style="font-size:0.7rem">${forceLabel} FORCE</span>`;
-            $('dp-force-readout').style.color = color;
-        }
+    // 4. FINALIZE UI
+    drawTideSparkline();
+    updateUI();
+}
+			
 
         function updateUI() {
             const pos = (state.t / state.t_pop * 100) + '%';
             $('ph-op').style.left = pos; $('ph-wx').style.left = pos;
             
-            const h = Math.floor(state.t), m = Math.floor((state.t % 1) * 60);
-            $('t-digital').innerText = `T+ ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+            const h = Math.floor(state.t);
+            const m = Math.floor((state.t % 1) * 60);
+            
+            // Calculate absolute dates (with failsafe)
+            let pad = n => n.toString().padStart(2, '0');
+            let sDate = state.start || new Date(); 
+            let cDate = new Date(sDate.getTime() + (state.t * 3600000)); 
+
+            let sStr = `${pad(sDate.getDate())}/${pad(sDate.getMonth()+1)} ${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`;
+            let cStr = `${pad(cDate.getDate())}/${pad(cDate.getMonth()+1)} ${pad(cDate.getHours())}:${pad(cDate.getMinutes())}`;
+
+            $('t-digital').innerHTML = `
+                <span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: ${sStr}</span>
+                <span style="color:#fff; font-size:1.1rem; margin-right:15px;">➔ ${cStr}</span>
+                <span style="color:var(--accent);">[ T+ ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')} ]</span>`;
 
             const curOp = state.ops.find(o => state.t >= o.start && state.t < o.end);
             state.ops.forEach((o, i) => {
@@ -1572,6 +1842,114 @@
             
             updateDPVector(activeWx);
             try { generateHeatmap(curOp, activeWx); } catch(e) { console.error(e); }
+            updatePlot();
+        }
+
+        function updateDPVector(wx) {
+            if(!wx) return;
+            let fWind = (wx.wSpd / 20), fCurr = (wx.cSpd / 1.5), fSea = (wx.seaHs / 2), fSwell = (wx.swHs / 2);
+            let rad = Math.PI / 180;
+            let pushW = (wx.wDir + 180) % 360, pushC = (wx.cDir + 180) % 360, pushSea = (wx.seaDir + 180) % 360, pushSw = (wx.swDir + 180) % 360;
+
+            let netX = (fWind * Math.sin(pushW * rad)) + (fCurr * Math.sin(pushC * rad)) + (fSea * Math.sin(pushSea * rad)) + (fSwell * Math.sin(pushSw * rad));
+            let netY = (fWind * Math.cos(pushW * rad)) + (fCurr * Math.cos(pushC * rad)) + (fSea * Math.cos(pushSea * rad)) + (fSwell * Math.cos(pushSw * rad));
+
+            let mag = Math.sqrt(netX*netX + netY*netY);
+            let dir = Math.atan2(netX, netY) * (180 / Math.PI); if(dir < 0) dir += 360;
+
+            let scale = Math.min(2, Math.max(0.2, mag / 1.5)); let arrowLength = 25 * scale;
+            $('net-force-arrow').setAttribute('transform', `rotate(${dir})`);
+            $('net-force-line').setAttribute('y2', -arrowLength);
+            $('net-force-head').setAttribute('points', `-6,${-arrowLength} 6,${-arrowLength} 0,${-(arrowLength + 10)}`);
+
+            let forceLabel = mag < 0.8 ? 'LOW' : (mag < 1.6 ? 'MED' : 'HIGH');
+            let color = mag < 0.8 ? 'var(--safe)' : (mag < 1.6 ? 'var(--warn)' : 'var(--danger)');
+
+            $('net-force-line').setAttribute('stroke', color); $('net-force-head').setAttribute('fill', color);
+            $('dp-force-readout').innerHTML = `${Math.round(dir).toString().padStart(3,'0')}°<br><span style="font-size:0.7rem">${forceLabel} FORCE</span>`;
+            $('dp-force-readout').style.color = color;
+        }
+
+        function updateUI() {
+            const pos = (state.t / state.t_pop * 100) + '%';
+            $('ph-op').style.left = pos; $('ph-wx').style.left = pos;
+            
+            const h = Math.floor(state.t);
+            const m = Math.floor((state.t % 1) * 60);
+            
+            // Calculate absolute dates (with failsafe if state.start isn't set yet)
+            let pad = n => n.toString().padStart(2, '0');
+            let sDate = state.start || new Date(); 
+            let cDate = new Date(sDate.getTime() + (state.t * 3600000)); // Adds T+ hours in milliseconds
+            
+            let sStr = `${pad(sDate.getDate())}/${pad(sDate.getMonth()+1)} ${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`;
+            let cStr = `${pad(cDate.getDate())}/${pad(cDate.getMonth()+1)} ${pad(cDate.getHours())}:${pad(cDate.getMinutes())}`;
+
+            $('t-digital').innerHTML = `
+                <span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: ${sStr}</span>
+                <span style="color:#fff; font-size:1.1rem; margin-right:15px;">➔ ${cStr}</span>
+                <span style="color:var(--accent);">[ T+ ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')} ]</span>`;
+
+            const curOp = state.ops.find(o => state.t >= o.start && state.t < o.end);
+            state.ops.forEach((o, i) => {
+                let el = $(`op-list-item-${i}`);
+                if (el) {
+                    if (state.t >= o.start && state.t < o.end) {
+                        el.style.borderLeftColor = 'var(--safe)';
+                        el.style.background = 'rgba(16, 185, 129, 0.15)';
+                    } else {
+                        el.style.borderLeftColor = 'transparent';
+                        el.style.background = 'rgba(0,0,0,0.5)';
+                    }
+                }
+            });
+            const isEditingOp = $('op-edit-panel').classList.contains('active');
+            
+            $('hdg-handle').style.display = 'block'; 
+            if(curOp) {
+                let tol = parseInt(curOp.hdgMode);
+                if (isNaN(tol)) tol = 0; 
+                if(tol === 0) {
+                    if (!simTimer && !draggingType && !isScrubbing && !isEditingOp && !hdgOverride) state.hdg = curOp.fixedHdg; 
+                    $('vessel-padlock').style.display = 'block';
+                } else {
+                    $('vessel-padlock').style.display = 'none';
+                }
+            } else {
+                $('vessel-padlock').style.display = 'none';
+            }
+
+            const activeWx = state.wx.length ? getInterpolatedWx(state.t) : getCurrentWxData();
+            const baseWxBlock = state.wx.find(w => state.t >= w.start && state.t < w.end) || state.wx[0];
+
+            // NEW: Fetch exact hourly current from our decoupled array
+            let activeCurr = { cDir: activeWx.cDir || 0, cSpd: activeWx.cSpd || 0 };
+            if (state.curr && state.curr.length > 0) {
+                // Find the exact 1-hour block for the current time
+                let currPoint = state.curr.find(c => state.t >= c.hour && state.t < c.hour + 1);
+                if (currPoint) activeCurr = currPoint;
+                else activeCurr = state.curr[state.curr.length - 1]; // failsafe
+            }
+            
+            // Merge Weather and Hourly Current for the UI and DP Engine
+            let mergedEnv = { ...activeWx, cDir: activeCurr.cDir, cSpd: activeCurr.cSpd };
+            
+            if (baseWxBlock && (simTimer || isScrubbing) && !draggingType && !state.isEditWxOpen) {
+                $('w-dir').value = Math.round(mergedEnv.wDir); $('w-spd').value = mergedEnv.wSpd.toFixed(1);
+                $('sea-dir').value = Math.round(mergedEnv.seaDir); $('sea-hs').value = mergedEnv.seaHs.toFixed(1); $('sea-tp').value = mergedEnv.seaTp.toFixed(1);
+                $('sw-dir').value = Math.round(mergedEnv.swDir); $('sw-hs').value = mergedEnv.swHs.toFixed(1); $('sw-tp').value = mergedEnv.swTp.toFixed(1);
+                $('c-dir').value = Math.round(mergedEnv.cDir); $('c-spd').value = mergedEnv.cSpd.toFixed(1);
+            }
+
+            if (!draggingType) {
+                $('arr-wind').setAttribute('transform', `rotate(${mergedEnv.wDir}, 250, 250)`); 
+                $('arr-sea').setAttribute('transform', `rotate(${mergedEnv.seaDir}, 250, 250)`);
+                $('arr-swell').setAttribute('transform', `rotate(${mergedEnv.swDir}, 250, 250)`); 
+                $('arr-curr').setAttribute('transform', `rotate(${mergedEnv.cDir}, 250, 250)`);
+            }
+            
+            updateDPVector(mergedEnv);
+            try { generateHeatmap(curOp, mergedEnv); } catch(e) { console.error(e); }
             updatePlot();
         }
 
@@ -1840,6 +2218,449 @@
 
         // Trigger the fetch as soon as the app opens
         loadLiveGitHubData();
+		
+		// --- STORMGEO CSV PARSER & AGGREGATOR ---
+        
+        function triggerStormGeo() {
+            alert("⚠️ Please ensure only standard StormGeo CSV exports are used.");
+            $('wx-csv-input').click();
+        }
+
+        function handleStormGeoCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            let inputDur = prompt("Enter Weather Block Duration in Hours (Minimum 6):", "6");
+            if (inputDur === null) return; 
+            
+            let bucketSize = parseFloat(inputDur);
+            if (isNaN(bucketSize) || bucketSize < 6) bucketSize = 6;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = text.split('\n').filter(r => r.trim().length > 0);
+                
+                let parsedData = [];
+                let startTimestamp = null;
+                
+                // 1. Smart Delimiter Detection (Handles Tabs, Commas, and Semicolons)
+                let delimiter = ',';
+                if (rows[0].includes('\t')) delimiter = '\t';
+                else if (rows[0].includes(';')) delimiter = ';';
+                
+                for (let i = 1; i < rows.length; i++) {
+                    // Split row and strip any hidden Excel quotes
+                    let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
+                    if (cols.length < 23) continue; 
+                    
+                    // 2. Bulletproof Date Parsing
+                    let timeString = cols[0];
+                    let rowDate = new Date(timeString).getTime(); 
+                    
+                    // If native JS date parsing fails, force parse DD/MM/YYYY HH:mm
+                    if (isNaN(rowDate) && timeString.includes('/')) {
+                        let parts = timeString.split(/[ T]/); 
+                        let dateParts = parts[0].split('/');
+                        if (dateParts.length === 3) {
+                            rowDate = new Date(`${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}T${parts[1] || '00:00'}:00`).getTime();
+                        }
+                    }
+                    
+                    // If it's still invalid, skip the row entirely rather than breaking the timeline
+                    if (isNaN(rowDate)) {
+                        console.warn("Skipping invalid date row:", timeString);
+                        continue;
+                    }
+                    
+                    if (startTimestamp === null) startTimestamp = rowDate; // Anchor T=0 safely
+                    let hourOffset = (rowDate - startTimestamp) / 3600000; // Convert ms to hours
+
+                    // 3. Map the Data
+                    parsedData.push({
+                        hour: hourOffset,
+                        wDir: parseFloat(cols[2]) || 0,     wSpd: parseFloat(cols[3]) || 0,
+                        swDir: parseFloat(cols[17]) || 0,   swHs: parseFloat(cols[18]) || 0,  swTp: parseFloat(cols[19]) || 0,
+                        seaDir: parseFloat(cols[20]) || 0,  seaHs: parseFloat(cols[21]) || 0, seaTp: parseFloat(cols[22]) || 0,
+                        cDir: 0, cSpd: 0 
+                    });
+                }
+
+                if (parsedData.length === 0) {
+                    alert("Failed to parse data. Ensure it is a valid StormGeo export.");
+                    return;
+                }
+
+                // 4. The Worst-Case Aggregation Engine
+                state.wx = [];
+                let maxHour = parsedData[parsedData.length - 1].hour;
+                
+                for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
+                    let endHour = startHour + bucketSize;
+                    let chunk = parsedData.filter(d => d.hour >= startHour && d.hour < endHour);
+                    
+                    if (chunk.length === 0) continue;
+
+                    let worstWind = chunk.reduce((max, cur) => cur.wSpd > max.wSpd ? cur : max, chunk[0]);
+                    let worstSea = chunk.reduce((max, cur) => cur.seaHs > max.seaHs ? cur : max, chunk[0]);
+                    let worstSwell = chunk.reduce((max, cur) => cur.swHs > max.swHs ? cur : max, chunk[0]);
+
+                    state.wx.push({
+                        start: startHour,
+                        end: endHour,
+                        wDir: Math.round(worstWind.wDir),       wSpd: worstWind.wSpd,
+                        seaDir: Math.round(worstSea.seaDir),    seaHs: worstSea.seaHs,    seaTp: worstSea.seaTp,
+                        swDir: Math.round(worstSwell.swDir),    swHs: worstSwell.swHs,    swTp: worstSwell.swTp,
+                        cDir: 0, cSpd: 0
+                    });
+                }
+
+                // Update Timeline UI
+                sync();
+                
+				// Add Weather Validity Note to UI
+                if($('wx-note')) {
+                    let wd = new Date(startTimestamp);
+                    let pad = n => n.toString().padStart(2, '0');
+                    $('wx-note').innerText = `(Loaded Forecast Valid From: ${pad(wd.getDate())}/${pad(wd.getMonth()+1)}/${wd.getFullYear()} ${pad(wd.getHours())}:${pad(wd.getMinutes())})`;
+                }
+				
+                // Bonus: Automatically sync the app's mission clock to the exact time the forecast starts
+                if($('mission-start')) {
+                    let d = new Date(startTimestamp);
+                    let pad = n => n.toString().padStart(2, '0');
+                    $('mission-start').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    state.start = d;
+                }
+                
+                alert(`✅ StormGeo Forecast loaded! Screened into ${bucketSize}-Hour limit blocks.`);
+            };
+            
+            reader.readAsText(file);
+            event.target.value = "";  
+        }
+		
+		// --- STORMGEO CURRENT PARSER & INJECTOR ---
+        
+        function triggerStormGeoCurrent() {
+            if (state.wx.length === 0 || !state.start) {
+                alert("⚠️ Please load the Main WX Forecast first to establish the timeline!");
+                return;
+            }
+            $('curr-csv-input').click();
+        }
+
+        function handleStormGeoCurrentCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = text.split('\n').filter(r => r.trim().length > 0);
+                
+                let parsedCurr = [];
+                let delimiter = ',';
+                if (rows[0].includes('\t')) delimiter = '\t';
+                else if (rows[0].includes(';')) delimiter = ';';
+                
+                for (let i = 1; i < rows.length; i++) {
+                    let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
+                    if (cols.length < 3) continue; 
+                    
+                    let timeString = cols[0];
+                    let rowDate;
+                    
+                    if (timeString.includes('/')) {
+                        let parts = timeString.split(/[ T]/); 
+                        let dateParts = parts[0].split('/');
+                        if (dateParts.length === 3) {
+                            rowDate = new Date(`${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}T${parts[1] || '00:00'}:00`).getTime();
+                        }
+                    }
+                    
+                    if (!rowDate || isNaN(rowDate)) rowDate = new Date(timeString).getTime(); 
+                    if (isNaN(rowDate)) continue;
+                    
+                    let hourOffset = (rowDate - state.start.getTime()) / 3600000; 
+
+                    if (hourOffset >= 0) {
+                        parsedCurr.push({
+                            hour: hourOffset,
+                            cDir: parseFloat(cols[1]) || 0,     
+                            cSpd: (parseFloat(cols[2]) || 0) * 1.94384 // CONVERT M/S TO KNOTS
+                        });
+                    }
+                }
+
+                if (parsedCurr.length === 0) {
+                    alert("Failed to parse data or dates do not overlap with existing timeline.");
+                    return;
+                }
+
+                // 1. Save the hourly data globally for the real-time simulation
+                state.curr = parsedCurr;
+
+                // 2. Inject the MAX current into the 6-hour Wx blocks just for the static UI
+                state.wx.forEach(w => {
+                    let chunk = parsedCurr.filter(d => d.hour >= w.start && d.hour < w.end);
+                    if (chunk.length > 0) {
+                        let worstCurr = chunk.reduce((max, cur) => cur.cSpd > max.cSpd ? cur : max, chunk[0]);
+                        w.cDir = Math.round(worstCurr.cDir);
+                        w.cSpd = worstCurr.cSpd;
+                    } else {
+                        w.cDir = 0; w.cSpd = 0; 
+                    }
+                });
+
+                sync();
+                alert(`✅ Hourly Current Data loaded! Simulation will now track the tide every hour.`);
+            };
+            
+            reader.readAsText(file);
+            event.target.value = ""; 
+        }
+		
+		// --- TIDE DATA PARSER & SVG SPARKLINE ---
+        
+        function triggerTide() {
+            if (!state.start) {
+                alert("⚠️ Please load the Main WX Forecast first to anchor the timeline!");
+                return;
+            }
+            $('tide-txt-input').click();
+        }
+
+        function handleTideData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                // PDF copy-pastes usually separate by newlines
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+                let parsedTide = [];
+                let dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/; // Relaxed to ignore hidden spaces
+
+                for (let i = 0; i < lines.length; i++) {
+                    let match = lines[i].match(dateRegex);
+                    
+                    if (match) {
+                        let day = match[1], month = match[2], year = match[3];
+                        // Force ISO standard parsing to avoid browser locale bugs
+                        let baseTime = new Date(`${year}-${month}-${day}T00:00:00`).getTime();
+
+                        // The next 24 lines in the text file are the hourly heights
+                        for (let h = 0; h < 24; h++) {
+                            if (i + 1 + h < lines.length) {
+                                let val = parseFloat(lines[i + 1 + h]);
+                                if (!isNaN(val)) {
+                                    let tTime = baseTime + (h * 3600000);
+                                    let hourOffset = (tTime - state.start.getTime()) / 3600000;
+                                    
+                                    // Only plot data that happens after our mission starts
+                                    if (hourOffset >= 0) {
+                                        parsedTide.push({
+                                            hour: hourOffset,
+                                            height: val / 100 // Convert cm to meters
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        i += 24; // Skip past the 24 numbers we just read
+                    }
+                }
+
+                if (parsedTide.length === 0) {
+                    alert("Failed to parse Tide Data. Ensure it matches the PDF copy-paste format.");
+                    return;
+                }
+
+                state.tide = parsedTide;
+                sync();
+                alert(`✅ Tidal Heights Loaded! Sparkline injected into background.`);
+            };
+            
+            reader.readAsText(file);
+            event.target.value = ""; 
+        }
+
+        function drawTideSparkline() {
+            if (!state.tide || state.tide.length === 0 || !$('svg-tide')) return;
+
+            // Filter for only the data that fits inside our current timeline width
+            let visibleTide = state.tide.filter(t => t.hour <= state.t_pop);
+            if (visibleTide.length === 0) return;
+
+            let maxT = state.t_pop;
+            let maxH = Math.max(...visibleTide.map(t => t.height));
+            let minH = Math.min(...visibleTide.map(t => t.height));
+            let range = maxH - minH;
+            if (range === 0) range = 1; // Failsafe against division by zero
+
+            // Calculate exact X and Y coordinates (in percentages) for the SVG line
+            let pts = visibleTide.map(t => {
+                let x = (t.hour / maxT) * 100;
+                let y = 100 - (((t.height - minH) / range) * 100);
+                return `${x},${y}`;
+            }).join(' ');
+
+            // Inject the vector graphic
+            // stroke-dasharray creates the dashed effect. opacity="0.5" makes it a ghost.
+            $('svg-tide').innerHTML = `
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible;">
+                    <polyline points="${pts}" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="2, 3" opacity="0.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            `;
+        }
+		// --- TIDE TOOLTIP ENGINE ---
+        
+        function showTideTooltip(e) {
+            if (!state.tide || state.tide.length === 0) return;
+
+            const track = $('tr-wx');
+            const rect = track.getBoundingClientRect();
+            
+            // Calculate exact hour based on mouse pixel position
+            const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+            const pct = x / rect.width;
+            const hoverTime = pct * state.t_pop; 
+
+            // Find the two closest hourly tide records to interpolate between
+            let t1 = state.tide.find(t => t.hour <= hoverTime && hoverTime - t.hour <= 1);
+            let t2 = state.tide.find(t => t.hour > hoverTime && t.hour - hoverTime <= 1);
+
+            let heightStr = "";
+            if (t1 && t2) {
+                // Linear interpolation for smooth data reading between the hours
+                let ratio = (hoverTime - t1.hour) / (t2.hour - t1.hour);
+                let h = t1.height + ratio * (t2.height - t1.height);
+                heightStr = h.toFixed(2) + "m";
+            } else if (t1) {
+                heightStr = t1.height.toFixed(2) + "m";
+            } else if (t2) {
+                heightStr = t2.height.toFixed(2) + "m";
+            } else {
+                hideTideTooltip(); // Mouse is beyond available data
+                return; 
+            }
+
+            // Update text and position
+            const tt = $('tide-tooltip');
+            tt.innerText = `🌊 TIDE: ${heightStr}`;
+            tt.style.display = 'block';
+
+            // Center the tooltip exactly over the mouse cursor, slightly above the track
+            let ttWidth = tt.offsetWidth || 70;
+            let leftPos = x - (ttWidth / 2);
+
+            // Prevent tooltip from clipping off the left or right edges
+            if (leftPos < 0) leftPos = 0;
+            if (leftPos + ttWidth > rect.width) leftPos = rect.width - ttWidth;
+
+            tt.style.left = leftPos + 'px';
+            tt.style.top = '2px'; 
+        }
+
+        function hideTideTooltip() {
+            if ($('tide-tooltip')) $('tide-tooltip').style.display = 'none';
+        }
+		
+		// --- SMART ONBOARDING (Runs once on load) ---
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if they are a first-time visitor
+            if (!localStorage.getItem('opsPlanner_hasSeenReadme')) {
+                // Pop the Read Me modal
+                if ($('readme-modal')) {
+                    $('readme-modal').style.display = 'flex';
+                }
+                // Leave a cookie so we don't bother them again tomorrow
+                localStorage.setItem('opsPlanner_hasSeenReadme', 'true');
+            }
+        });
+		
+				// --- MASTER PROJECT EXPORT (.txt) ---
+				function exportPlan() {
+			if (!state.ops || state.ops.length === 0) {
+				alert("⚠️ Nothing to save. Build a sequence first!");
+				return;
+			}
+
+			let projectName = prompt("Enter Project Name:", "OFFSHORE_OP_01");
+			if (!projectName) return;
+
+			let cleanName = projectName.replace(/[^a-z0-9]/gi, '_').toUpperCase();
+			let dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+			let fileName = `${cleanName}_PLAN_${dateStr}.txt`;
+
+			const masterPackage = {
+				fileType: "OpsPlannerMasterV2",
+				projectName: projectName,
+				missionStart: state.start ? state.start.toISOString() : null,
+				operations: state.ops,
+				analysisLibrary: orcaData, // Saving your processed orcaData
+				tideData: state.tide || []
+			};
+
+			const blob = new Blob([JSON.stringify(masterPackage, null, 2)], { type: "text/plain" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = fileName;
+			a.click();
+			URL.revokeObjectURL(url);
+		}
+		
+		function processPastedData() {
+    const raw = $('paste-area').value.trim();
+    if (!raw) { alert("Please paste data from the Excel template."); return; }
+
+    const rows = raw.split(/\n/);
+    let addedCount = 0;
+
+    rows.forEach(row => {
+        // Excel uses Tabs (\t) for copy-paste. 
+        const cols = row.split('\t').map(c => c.trim());
+
+        // We need exactly 15 columns for a full row:
+        // [0]ID, [1]Class, [2]Param, [3..14]Headings
+        if (cols.length < 15) return;
+
+        // Skip headers and instructions
+        if (cols[0].toLowerCase().includes("analysis_id") || 
+            cols[0].toLowerCase().includes("instruction") ||
+            cols[1].toLowerCase().includes("limit_class")) return;
+
+        const id = cols[0].toUpperCase() || "UNNAMED_ANALYSIS";
+        const limitClass = cols[1].toUpperCase() || "WAVE_HS_BY_TP";
+        const paramVal = cols[2]; // This is your '0, 2, 3, 4, 5' etc.
+        
+        // THE FIX: Slice precisely from index 3 to 15 to get all 12 headings
+        const headings = cols.slice(3, 15).map(v => {
+            let num = parseFloat(v);
+            return isNaN(num) ? null : num;
+        });
+
+        // Structure check: window.masterData style injection
+        if (!orcaData[id]) orcaData[id] = {};
+        if (!orcaData[id][limitClass]) orcaData[id][limitClass] = {};
+
+        orcaData[id][limitClass][paramVal] = headings;
+        addedCount++;
+    });
+
+    if (addedCount > 0) {
+        populateDropdownMenus();
+        $('paste-analysis-modal').style.display = 'none';
+        $('paste-area').value = '';
+        alert(`✅ SUCCESS: Injected ${addedCount} rows into library.`);
+    } else {
+        alert("❌ ERROR: Data alignment issue. Ensure you copied all columns (A through O) in Excel.");
+    }
+}
     </script>
 </body>
 </html>
