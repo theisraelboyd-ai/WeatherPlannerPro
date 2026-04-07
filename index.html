@@ -677,56 +677,66 @@
 		</aside>
 
 	   <footer>
-			<div style="display:flex; justify-content:space-between; align-items:flex-end;">
-				<label style="font-size:0.7rem; font-weight:900; color:#cbd5e1; margin:0">1. OPERATIONAL SEQUENCE</label>
-				<button type="button" class="top-btn" style="border-color:var(--danger); color:var(--danger); padding:2px 6px;" onclick="resetOps()">RESET OPERATIONS</button>
-			</div>
-			<div class="t-track" id="tr-op" onmousedown="scrub(event)">
-				<div class="ph" id="ph-op"></div><div id="cont-op" style="display:flex; width:100%; height:100%"></div>
-			</div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+        <label style="font-size:0.7rem; font-weight:900; color:#cbd5e1; margin:0">1. OPERATIONAL SEQUENCE</label>
+        
+        <button onclick="if(confirm('⚠️ Are you sure you want to delete all operations? This cannot be undone.')) { resetOps(); }" 
+        style="background: transparent; color: var(--danger); border: 1px solid var(--danger); border-radius: 4px; padding: 4px 12px; font-size: 0.8rem; font-weight: bold; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease;" 
+        onmouseover="this.style.background='var(--danger)'; this.style.color='#fff'" 
+        onmouseout="this.style.background='transparent'; this.style.color='var(--danger)'">
+        RESET OPERATIONS
+        </button>
+    </div>
+    
+    <div class="t-track" id="tr-op" onmousedown="scrub(event)">
+        <div class="ph" id="ph-op"></div><div id="cont-op" style="display:flex; width:100%; height:100%"></div>
+    </div>
 
-			<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:2px;">
-				<label style="font-size:0.7rem; font-weight:900; color:#cbd5e1; margin-bottom:0;">
-				2. ENVIRONMENTAL FORECAST <span id="wx-note" style="color:var(--warn); margin-left:10px; font-size:0.6rem;"></span>
-				</label>
-				<button type="button" class="top-btn" style="border-color:var(--danger); color:var(--danger); padding:2px 6px;" onclick="resetWx()">RESET FORECAST</button>
-			</div>
-			<div class="t-track wx-track" id="tr-wx" onmousedown="scrub(event)" onmousemove="showTideTooltip(event)" onmouseleave="hideTideTooltip()" style="position:relative;">
-				
-				<div id="tide-tooltip" style="position:absolute; display:none; background:rgba(15, 23, 42, 0.95); border:1px solid #2dd4bf; color:#2dd4bf; padding:2px 6px; border-radius:4px; font-size:0.65rem; font-weight:900; z-index:999; pointer-events:none; white-space:nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);"></div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:2px;">
+        <label style="font-size:0.7rem; font-weight:900; color:#cbd5e1; margin-bottom:0;">
+        2. ENVIRONMENTAL FORECAST <span id="wx-note" style="color:var(--warn); margin-left:10px; font-size:0.6rem;"></span>
+        </label>
+        
+        <button onclick="if(confirm('⚠️ Are you sure you want to delete the forecast? This will reset the timeline zero point.')) { state.wx=[]; state.curr=[]; state.start=null; sync(); }" 
+        style="background: transparent; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 4px 12px; font-size: 0.8rem; font-weight: bold; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease;" 
+        onmouseover="this.style.background='var(--warn)'; this.style.color='#111'" 
+        onmouseout="this.style.background='transparent'; this.style.color='var(--warn)'">
+        RESET FORECAST
+        </button>
+    </div>
+    
+    <div class="t-track wx-track" id="tr-wx" onmousedown="scrub(event)" onmousemove="showTideTooltip(event)" onmouseleave="hideTideTooltip()" style="position:relative;">
+        <div id="tide-tooltip" style="position:absolute; display:none; background:rgba(15, 23, 42, 0.95); border:1px solid #2dd4bf; color:#2dd4bf; padding:2px 6px; border-radius:4px; font-size:0.65rem; font-weight:900; z-index:999; pointer-events:none; white-space:nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);"></div>
+        <div id="cont-wx" style="display:flex; width:100%; height:100%; position:relative; z-index:1;"></div>
+        <div id="svg-tide" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:3; pointer-events:none; opacity:0.8;"></div>
+        <div class="ph" id="ph-wx" style="z-index:4;"></div>
+    </div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; margin-top:5px;">
+        
+        <div id="t-digital" style="display:flex; align-items:center;">
+            <span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: --/-- --:--</span>
+        </div>
 
-				<div id="cont-wx" style="display:flex; width:100%; height:100%; position:relative; z-index:1;"></div>
-				
-				<div id="svg-tide" style="position:absolute; top:0; left:0; width:100%; height:100%; z-index:3; pointer-events:none; opacity:0.8;"></div>
-				
-				<div class="ph" id="ph-wx" style="z-index:4;"></div>
-			</div>
-			
-			<div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; margin-top:5px;">
-				
-				<div id="t-digital" style="display:flex; align-items:center;">
-					<span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: --/-- --:--</span>
-				</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            
+            <input type="file" id="wx-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCSV(event)">
+            <div class="top-btn" style="border-color:var(--warn); color:var(--warn); padding:4px 8px; font-size:0.7rem;" onclick="triggerStormGeo()">⛅ STORMGEO WX</div>
+            
+            <input type="file" id="curr-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCurrentCSV(event)">
+            <div class="top-btn" style="border-color:#c084fc; color:#c084fc; padding:4px 8px; font-size:0.7rem;" onclick="triggerStormGeoCurrent()">🌊 STORMGEO CURRENTS</div>
+            
+            <input type="file" id="tide-txt-input" accept=".txt,.csv" style="display:none" onchange="handleTideData(event)">
+            <div class="top-btn" style="border-color:#2dd4bf; color:#2dd4bf; padding:4px 8px; font-size:0.7rem;" onclick="triggerTide()">📈 STORM GEO TIDAL DATA</div>
 
-				<div style="display:flex; gap:10px; align-items:center;">
-					
-					<input type="file" id="wx-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCSV(event)">
-					<div class="top-btn" style="border-color:var(--warn); color:var(--warn); padding:4px 8px; font-size:0.7rem;" onclick="triggerStormGeo()">⛅ STORMGEO WX</div>
-					
-					<input type="file" id="curr-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCurrentCSV(event)">
-					<div class="top-btn" style="border-color:#c084fc; color:#c084fc; padding:4px 8px; font-size:0.7rem;" onclick="triggerStormGeoCurrent()">🌊 STORMGEO CURRENTS</div>
-					
-					<input type="file" id="tide-txt-input" accept=".txt,.csv" style="display:none" onchange="handleTideData(event)">
-					<div class="top-btn" style="border-color:#2dd4bf; color:#2dd4bf; padding:4px 8px; font-size:0.7rem;" onclick="triggerTide()">📈 STORM GEO TIDAL DATA</div>
+            <div style="width:1px; height:20px; background:#334155; margin: 0 5px;"></div>
 
-					<div style="width:1px; height:20px; background:#334155; margin: 0 5px;"></div>
-
-					<div id="btn-sim-speed" class="sim-btn" onclick="toggleSimSpeed()" style="padding:4px 8px; font-size:0.7rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">1.0X SPD</div>
-					<div id="btn-sim-loop" class="sim-btn" onclick="toggleSimLoop()" style="padding:4px 8px; font-size:0.7rem; color:var(--safe); border-color:var(--safe); cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">🔁 LOOP: ON</div>
-					<div id="btn-sim" class="sim-btn play-btn" onclick="toggleSim()" style="padding:4px 12px; font-size:0.7rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">▶ RUN SIMULATION</div>
-				</div>
-			</div>
-		</footer>
+            <div id="btn-sim-speed" class="sim-btn" onclick="toggleSimSpeed()" style="padding:4px 8px; font-size:0.7rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">1.0X SPD</div>
+            <div id="btn-sim-loop" class="sim-btn" onclick="toggleSimLoop()" style="padding:4px 8px; font-size:0.7rem; color:var(--safe); border-color:var(--safe); cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">🔁 LOOP: ON</div>
+            <div id="btn-sim" class="sim-btn play-btn" onclick="toggleSim()" style="padding:4px 12px; font-size:0.7rem; cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;">▶ RUN SIMULATION</div>
+        </div>
+    </div>
+</footer>
 
 	<script>
 			// 1. DOM Failsafes
@@ -735,6 +745,8 @@
 
 			// 2. Global State Declaration
 			let orcaData = {}; 
+			// Scroll Cards
+			let lastActiveOp = -1;
 			
 			let state = { 
 				t: 0, t_pop: 24, hdg: 0, 
@@ -1602,16 +1614,35 @@
 	}
 
 			function scrub(e) {
-				isScrubbing = true;
-				hdgOverride = false;
-				const move = (e) => {
-					const r = $('tr-op').getBoundingClientRect();
-					state.t = Math.max(0, Math.min(state.t_pop, ((e.clientX - r.left) / r.width) * state.t_pop));
-					updateUI();
-				};
-				move(e); window.onmousemove = move; 
-				window.onmouseup = () => { window.onmousemove = null; isScrubbing = false; };
-			}
+    isScrubbing = true;
+    hdgOverride = false;
+    
+    const move = (e) => {
+        const r = $('tr-op').getBoundingClientRect();
+        state.t = Math.max(0, Math.min(state.t_pop, ((e.clientX - r.left) / r.width) * state.t_pop));
+        
+        // 1. REBUILD THE UI FIRST
+        updateUI(); 
+        
+        // 2. WAIT 10ms FOR THE HTML TO BE DRAWN
+        setTimeout(() => {
+            let activeOpIndex = state.ops.findIndex(o => state.t >= o.start && state.t < o.end);
+            
+            if (activeOpIndex !== -1) {
+                let card = document.getElementById(`op-card-${activeOpIndex}`);
+                
+                if (card) {
+                    // Let the browser figure out which parent has the scrollbar and center the card in it!
+                    card.scrollIntoView({ behavior: 'auto', block: 'center' });
+                }
+            }
+        }, 10); 
+    };
+    
+    move(e); 
+    window.onmousemove = move; 
+    window.onmouseup = () => { window.onmousemove = null; isScrubbing = false; };
+}
 
 			// 9. Operations & Wx Add/Edit Logic
 			function addPhase() {
@@ -1858,7 +1889,7 @@
 			}
 
 			return `
-			<div id="op-list-item-${i}" style="padding:6px; background:rgba(0,0,0,0.5); border-radius:4px; margin-bottom:4px; border-left:4px solid transparent; transition:0.2s;">
+			<div id="op-list-item-${i}" id="op-card-${i}" style="padding:6px; background:rgba(0,0,0,0.5); border-radius:4px; margin-bottom:4px; border-left:4px solid transparent; transition:0.2s;">
 				🚢 ${o.label} <span style="opacity:0.5; font-family:monospace; margin-left:4px;">${(o.end - o.start).toFixed(1)}h</span>
 				${o.refs && o.refs.length > 1 ? `<br><span style="color:#cbd5e1; font-size:0.6rem;">↳ + ${o.refs[1].replace(/_/g, ' ')}</span>` : ''}
 				${waveBadge}
@@ -1869,15 +1900,26 @@
 
 		// 2. UPDATE OPERATIONAL TIMELINE TRACK
 		$('cont-op').innerHTML = state.ops.map((d, i) => {
-			const pct = ((d.end - d.start) / state.t_pop) * 100;
-			let content = pct > 12 ?
-				`<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; line-height:1;">
-					<span style="font-size:0.6rem; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:90%; color:#cbd5e1; margin-bottom:2px;">${d.label}</span>
-					<span style="font-size:0.85rem; font-weight:900; color:#fff;">${(d.end - d.start).toFixed(1)}H</span>
-				</div>`
-				: `<span style="font-size:0.8rem; font-weight:900; color:#fff;">${(d.end - d.start).toFixed(1)}H</span>`;
+			const dur = d.end - d.start;
+			const pct = (dur / state.t_pop) * 100; // Calculates the width of the box
 				
-			// ---> INJECTED ONCLICK HERE <---
+			// 1. Truncate long names so they don't break the CSS
+			let taskName = d.label || "Task";
+			let labelText = taskName.length > 15 ? taskName.substring(0, 13) + '...' : taskName;
+
+			// 2. FORCE TEXT ON EVERY BLOCK (Inner Content)
+			let content = `
+				<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; line-height:1; overflow:hidden; padding: 0 1px;">
+					<span style="font-size:0.55rem; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; color:#cbd5e1; margin-bottom:1px; display:block;">
+						${labelText}
+					</span>
+					<span style="font-size:0.8rem; font-weight:900; color:#fff; white-space:nowrap;">
+						${dur.toFixed(1)}H
+					</span>
+				</div>
+			`;
+			
+			// 3. Return the clickable outer block wrapper
 			return `<div class="block op-block" ondblclick="openOpEdit(${i})" style="width:${pct}%; padding:2px;">${content}</div>`;
 		}).join('');
 
@@ -2340,352 +2382,236 @@
 			// Trigger the fetch as soon as the app opens
 			loadLiveGitHubData();
 			
-			// --- STORMGEO CSV PARSER & AGGREGATOR ---
-			
-			function triggerStormGeo() {
-				alert("⚠️ Please ensure only standard StormGeo CSV exports are used.");
-				$('wx-csv-input').click();
-			}
+			// ==========================================
+// 1. STORMGEO MAIN WEATHER PARSER
+// ==========================================
 
-			function handleStormGeoCSV(event) {
-				const file = event.target.files[0];
-				if (!file) return;
+function triggerStormGeo() {
+    alert("⚠️ Please ensure only standard StormGeo CSV exports are used.");
+    $('wx-csv-input').click();
+}
 
-				let inputDur = prompt("Enter Weather Block Duration in Hours (Minimum 6):", "6");
-				if (inputDur === null) return; 
-				
-				let bucketSize = parseFloat(inputDur);
-				if (isNaN(bucketSize) || bucketSize < 6) bucketSize = 6;
+function handleStormGeoCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-				const reader = new FileReader();
-				reader.onload = function(e) {
-					const text = e.target.result;
-					const rows = text.split('\n').filter(r => r.trim().length > 0);
-					
-					// 1. Smart Delimiter Detection
-					let delimiter = ',';
-					if (rows[0].includes('\t')) delimiter = '\t';
-					else if (rows[0].includes(';')) delimiter = ';';
-					
-					// --- NEW: DYNAMIC HEADER MAPPING ---
-					// This reads the header row and finds the exact column index regardless of layout shifts
-					let headers = rows[0].split(delimiter).map(h => h.replace(/['"]/g, '').trim().toLowerCase());
-					
-					let getIdx = (keywords) => {
-						for (let kw of keywords) {
-							let idx = headers.findIndex(h => h === kw || h.includes(kw));
-							if (idx !== -1) return idx;
-						}
-						return -1;
-					};
+    let inputDur = prompt("Enter Weather Block Duration in Hours (Minimum 6):", "6");
+    if (inputDur === null) return; 
+    let bucketSize = parseFloat(inputDur);
+    if (isNaN(bucketSize) || bucketSize < 6) bucketSize = 6;
 
-					let map = {
-						wDir: getIdx(['winddirection']),
-						wSpd: getIdx(['windspeed']), 
-						swDir: getIdx(['primarywavedirection', 'swelldirection']),
-						swHs: getIdx(['swellheig', 'primarywaveheight']), // Catches their 'swellheigth' typo
-						swTp: getIdx(['primarywaveperiod', 'swellperiod']),
-						seaDir: getIdx(['secondarywavedirection', 'windwavedirection']),
-						seaHs: getIdx(['windwaveheight', 'secondarywaveheight']),
-						seaTp: getIdx(['secondarywaveperiod', 'windwaveperiod'])
-					};
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n').filter(r => r.trim().length > 0);
+        let delimiter = rows[0].includes('\t') ? '\t' : (rows[0].includes(';') ? ';' : ',');
 
-					let parsedData = [];
-					let startTimestamp = null;
-					
-					for (let i = 1; i < rows.length; i++) {
-						let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
-						if (cols.length < 10) continue; // Basic validity check
-						
-						// 2. Bulletproof Date Parsing
-						let timeString = cols[0];
-						let rowDate = new Date(timeString).getTime(); 
-						
-						if (isNaN(rowDate) && timeString.includes('/')) {
-							let parts = timeString.split(/[ T]/); 
-							let dateParts = parts[0].split('/');
-							if (dateParts.length === 3) {
-								rowDate = new Date(`${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}T${parts[1] || '00:00'}:00`).getTime();
-							}
-						}
-						
-						if (isNaN(rowDate)) {
-							console.warn("Skipping invalid date row:", timeString);
-							continue;
-						}
-						
-						if (startTimestamp === null) startTimestamp = rowDate; 
-						let hourOffset = (rowDate - startTimestamp) / 3600000; 
+        // Dynamic Header Mapping
+        let headers = rows[0].split(delimiter).map(h => h.replace(/['"]/g, '').trim().toLowerCase());
+        let getIdx = (keywords) => {
+            for (let kw of keywords) {
+                let idx = headers.findIndex(h => h === kw || h.includes(kw));
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        };
 
-						// 3. Map Data using Dynamic Indices
-						let v_wDir = map.wDir !== -1 ? parseFloat(cols[map.wDir]) : 0;
-						let v_wSpd = map.wSpd !== -1 ? parseFloat(cols[map.wSpd]) : 0;
-						let v_swDir = map.swDir !== -1 ? parseFloat(cols[map.swDir]) : 0;
-						let v_swHs = map.swHs !== -1 ? parseFloat(cols[map.swHs]) : 0;
-						let v_swTp = map.swTp !== -1 ? parseFloat(cols[map.swTp]) : 0;
-						let v_seaDir = map.seaDir !== -1 ? parseFloat(cols[map.seaDir]) : 0;
-						let v_seaHs = map.seaHs !== -1 ? parseFloat(cols[map.seaHs]) : 0;
-						let v_seaTp = map.seaTp !== -1 ? parseFloat(cols[map.seaTp]) : 0;
+        let map = {
+            wDir: getIdx(['winddirection']), wSpd: getIdx(['windspeed']), 
+            swDir: getIdx(['primarywavedirection', 'swelldirection']),
+            swHs: getIdx(['swellheig', 'primarywaveheight']), 
+            swTp: getIdx(['primarywaveperiod', 'swellperiod']),
+            seaDir: getIdx(['secondarywavedirection', 'windwavedirection']),
+            seaHs: getIdx(['windwaveheight', 'secondarywaveheight']),
+            seaTp: getIdx(['secondarywaveperiod', 'windwaveperiod'])
+        };
 
-						parsedData.push({
-							hour: hourOffset,
-							wDir: v_wDir || 0,		
-							wSpd: (v_wSpd || 0) * 1.94384, // CONVERT M/S TO KNOTS
-							swDir: v_swDir || 0,	
-							swHs: v_swHs || 0,	  
-							swTp: v_swTp || 0,
-							seaDir: v_seaDir || 0,	
-							seaHs: v_seaHs || 0, 
-							seaTp: v_seaTp || 0,
-							cDir: 0, cSpd: 0 
-						});
-					}
+        let parsedData = [];
+        let firstDateFound = null; 
+        
+        for (let i = 1; i < rows.length; i++) {
+            let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
+            if (cols.length < 10) continue;
+            
+            let timeString = cols[0];
+            
+            // Allow JS to natively parse the date (Works best for MM/DD/YYYY)
+            let rowDate = new Date(timeString).getTime();
+            
+            // Failsafe for European dates if native fails
+            if (isNaN(rowDate) && timeString.includes('/')) {
+                let parts = timeString.split(/[ T]/); 
+                let dp = parts[0].split('/');
+                if (dp.length === 3) {
+                    rowDate = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${parts[1] || '00:00'}:00`).getTime();
+                }
+            }
+            
+            if (isNaN(rowDate)) continue;
 
-					if (parsedData.length === 0) {
-						alert("Failed to parse data. Ensure it is a valid StormGeo export.");
-						return;
-					}
+            // 1. AUTO-ANCHOR LOGIC
+            if (firstDateFound === null) firstDateFound = rowDate;
 
-					// 4. Aggregation Engine
-					state.wx = [];
-					let maxHour = parsedData[parsedData.length - 1].hour;
-					
-					for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
-						let endHour = startHour + bucketSize;
-						let chunk = parsedData.filter(d => d.hour >= startHour && d.hour < endHour);
-						
-						if (chunk.length === 0) continue;
+            let missionAnchor = state.start ? state.start.getTime() : firstDateFound;
+            let hourOffset = (rowDate - missionAnchor) / 3600000; 
+            
+            if (hourOffset < -0.5) continue; 
 
-						let worstWind = chunk.reduce((max, cur) => cur.wSpd > max.wSpd ? cur : max, chunk[0]);
-						let worstSea = chunk.reduce((max, cur) => cur.seaHs > max.seaHs ? cur : max, chunk[0]);
-						let worstSwell = chunk.reduce((max, cur) => cur.swHs > max.swHs ? cur : max, chunk[0]);
+            parsedData.push({
+                hour: hourOffset,
+                wDir: parseFloat(cols[map.wDir]) || 0,		
+                wSpd: (parseFloat(cols[map.wSpd]) || 0) * 1.94384, 
+                swDir: parseFloat(cols[map.swDir]) || 0,	
+                swHs: parseFloat(cols[map.swHs]) || 0,	  
+                swTp: parseFloat(cols[map.swTp]) || 0,
+                seaDir: parseFloat(cols[map.seaDir]) || 0,	
+                seaHs: parseFloat(cols[map.seaHs]) || 0, 
+                seaTp: parseFloat(cols[map.seaTp]) || 0
+            });
+        }
 
-						state.wx.push({
-							start: startHour,
-							end: endHour,
-							wDir: Math.round(worstWind.wDir),		wSpd: worstWind.wSpd,
-							seaDir: Math.round(worstSea.seaDir),	seaHs: worstSea.seaHs,	  seaTp: worstSea.seaTp,
-							swDir: Math.round(worstSwell.swDir),	swHs: worstSwell.swHs,	  swTp: worstSwell.swTp,
-							cDir: 0, cSpd: 0
-						});
-					}
+        if (parsedData.length === 0) {
+            alert("❌ ERROR: No valid weather data found.");
+            return;
+        }
 
-					sync();
-					
-					if($('wx-note')) {
-						let wd = new Date(startTimestamp);
-						let pad = n => n.toString().padStart(2, '0');
-						$('wx-note').innerText = `(Loaded Forecast Valid From: ${pad(wd.getDate())}/${pad(wd.getMonth()+1)}/${wd.getFullYear()} ${pad(wd.getHours())}:${pad(wd.getMinutes())})`;
-					}
-					
-					if($('mission-start')) {
-						let d = new Date(startTimestamp);
-						let pad = n => n.toString().padStart(2, '0');
-						$('mission-start').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-						state.start = d;
-					}
-					
-					alert(`✅ StormGeo Forecast loaded! Screened into ${bucketSize}-Hour limit blocks.`);
-				};
-				
-				reader.readAsText(file);
-				event.target.value = "";  
-			}
-			
-			// --- STORMGEO CURRENT PARSER & INJECTOR ---
-			
-			function triggerStormGeoCurrent() {
-				if (state.wx.length === 0 || !state.start) {
-					alert("⚠️ Please load the Main WX Forecast first to establish the timeline!");
-					return;
-				}
-				$('curr-csv-input').click();
-			}
+        // SET GLOBAL MISSION START TIME
+        if (!state.start && firstDateFound) {
+            let d = new Date(firstDateFound);
+            state.start = d;
+            
+            if ($('mission-start')) {
+                let pad = n => n.toString().padStart(2, '0');
+                $('mission-start').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            }
+        }
 
-			function handleStormGeoCSV(event) {
-				const file = event.target.files[0];
-				if (!file) return;
+        // Worst-Case Aggregator
+        state.wx = [];
+        let maxHour = parsedData[parsedData.length - 1].hour;
+        
+        for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
+            let endHour = startHour + bucketSize;
+            let chunk = parsedData.filter(d => d.hour >= startHour && d.hour < endHour);
+            if (chunk.length === 0) continue;
 
-				// Ensure we have a valid Mission Start to anchor to
-				if (!state.start) {
-					alert("⚠️ Please set a MISSION START TIME in the header first!");
-					return;
-				}
+            let worstWind = chunk.reduce((max, cur) => cur.wSpd > max.wSpd ? cur : max, chunk[0]);
+            let worstSea = chunk.reduce((max, cur) => cur.seaHs > max.seaHs ? cur : max, chunk[0]);
+            let worstSwell = chunk.reduce((max, cur) => cur.swHs > max.swHs ? cur : max, chunk[0]);
 
-				let inputDur = prompt("Enter Weather Block Duration in Hours (Minimum 6):", "6");
-				if (inputDur === null) return; 
-				let bucketSize = parseFloat(inputDur);
-				if (isNaN(bucketSize) || bucketSize < 6) bucketSize = 6;
+            state.wx.push({
+                start: startHour, end: endHour,
+                wDir: Math.round(worstWind.wDir), wSpd: worstWind.wSpd,
+                seaDir: Math.round(worstSea.seaDir), seaHs: worstSea.seaHs, seaTp: worstSea.seaTp,
+                swDir: Math.round(worstSwell.swDir), swHs: worstSwell.swHs, swTp: worstSwell.swTp,
+                cDir: 0, cSpd: 0 
+            });
+        }
 
-				const reader = new FileReader();
-				reader.onload = function(e) {
-					const text = e.target.result;
-					const rows = text.split('\n').filter(r => r.trim().length > 0);
-					let delimiter = rows[0].includes('\t') ? '\t' : (rows[0].includes(';') ? ';' : ',');
+        sync();
+        
+        let pad = n => n.toString().padStart(2, '0');
+        let neatDate = `${pad(state.start.getDate())}/${pad(state.start.getMonth()+1)}/${state.start.getFullYear()} ${pad(state.start.getHours())}:00`;
+        
+        alert(`✅ Forecast Synced to Mission Start: ${neatDate}`);
+    };
+    
+    reader.readAsText(file);
+    event.target.value = "";  
+}
 
-					// 1. Dynamic Header Mapping
-					let headers = rows[0].split(delimiter).map(h => h.replace(/['"]/g, '').trim().toLowerCase());
-					let getIdx = (keywords) => {
-						for (let kw of keywords) {
-							let idx = headers.findIndex(h => h === kw || h.includes(kw));
-							if (idx !== -1) return idx;
-						}
-						return -1;
-					};
 
-					let map = {
-						wDir: getIdx(['winddirection']), wSpd: getIdx(['windspeed']), 
-						swDir: getIdx(['primarywavedirection', 'swelldirection']),
-						swHs: getIdx(['swellheig', 'primarywaveheight']),
-						swTp: getIdx(['primarywaveperiod', 'swellperiod']),
-						seaDir: getIdx(['secondarywavedirection', 'windwavedirection']),
-						seaHs: getIdx(['windwaveheight', 'secondarywaveheight']),
-						seaTp: getIdx(['secondarywaveperiod', 'windwaveperiod'])
-					};
+// ==========================================
+// 2. STORMGEO CURRENTS PARSER (SMART MATCHER)
+// ==========================================
 
-					let parsedData = [];
-					let missionAnchor = state.start.getTime(); // THE MASTER ZERO
-					
-					for (let i = 1; i < rows.length; i++) {
-						let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
-						if (cols.length < 10) continue;
-						
-						let timeString = cols[0];
-						let rowDate = new Date(timeString).getTime(); 
-						
-						// Failsafe for DD/MM/YYYY
-						if (isNaN(rowDate) && timeString.includes('/')) {
-							let parts = timeString.split(/[ T]/); 
-							let dateParts = parts[0].split('/');
-							if (dateParts.length === 3) {
-								rowDate = new Date(`${dateParts[2]}-${dateParts[1].padStart(2,'0')}-${dateParts[0].padStart(2,'0')}T${parts[1] || '00:00'}:00`).getTime();
-							}
-						}
-						
-						if (isNaN(rowDate)) continue;
+function triggerStormGeoCurrent() {
+    if (state.wx.length === 0 || !state.start) {
+        alert("⚠️ Please load the Main WX Forecast first to establish the timeline!");
+        return;
+    }
+    $('curr-csv-input').click();
+}
 
-						// --- THE ANCHOR FIX ---
-						// Calculate offset relative to the Mission Start Time
-						let hourOffset = (rowDate - missionAnchor) / 3600000; 
+function handleStormGeoCurrentCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-						// Skip weather that happened before the current Mission Start
-						if (hourOffset < -0.5) continue; 
+    if (!state.start) {
+        alert("⚠️ Please set a MISSION START TIME in the header first!");
+        return;
+    }
 
-						parsedData.push({
-							hour: hourOffset,
-							wDir: parseFloat(cols[map.wDir]) || 0,		
-							wSpd: (parseFloat(cols[map.wSpd]) || 0) * 1.94384,
-							swDir: parseFloat(cols[map.swDir]) || 0,	
-							swHs: parseFloat(cols[map.swHs]) || 0,	  
-							swTp: parseFloat(cols[map.swTp]) || 0,
-							seaDir: parseFloat(cols[map.seaDir]) || 0,	
-							seaHs: parseFloat(cols[map.seaHs]) || 0, 
-							seaTp: parseFloat(cols[map.seaTp]) || 0
-						});
-					}
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n').filter(r => r.trim().length > 0);
+        
+        let parsedData = [];
+        let missionAnchor = state.start.getTime();
 
-					if (parsedData.length === 0) {
-						alert("❌ ERROR: No weather data found occurring after your Mission Start Time.");
-						return;
-					}
+        for (let i = 1; i < rows.length; i++) {
+            let rowStr = rows[i].trim().replace(/['"]/g, '');
+            let cols = rowStr.split(/[\t,;]+/);
+            
+            // Space-Separator Fallback
+            if (cols.length === 1) {
+                let spaceSplit = rowStr.split(/\s+/);
+                if (spaceSplit.length >= 4 && spaceSplit[0].includes('/')) {
+                    cols = [ spaceSplit[0] + " " + spaceSplit[1], spaceSplit[2], spaceSplit[3] ];
+                }
+            }
 
-					// 2. Worst-Case Aggregator (Aggregates from T=0 relative to mission)
-					state.wx = [];
-					let maxHour = parsedData[parsedData.length - 1].hour;
-					
-					for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
-						let endHour = startHour + bucketSize;
-						let chunk = parsedData.filter(d => d.hour >= startHour && d.hour < endHour);
-						if (chunk.length === 0) continue;
+            if (cols.length < 3) continue; 
+            
+            let timeString = cols[0]; 
+            let rowDate = new Date(timeString).getTime();
 
-						let worstWind = chunk.reduce((max, cur) => cur.wSpd > max.wSpd ? cur : max, chunk[0]);
-						let worstSea = chunk.reduce((max, cur) => cur.seaHs > max.seaHs ? cur : max, chunk[0]);
-						let worstSwell = chunk.reduce((max, cur) => cur.swHs > max.swHs ? cur : max, chunk[0]);
+            // --- THE SMART MATCHER ---
+            // Forces the current date to match the mission timeline regardless of M/D or D/M
+            if (timeString.includes('/')) {
+                let parts = timeString.split(/[ T]/); 
+                let dp = parts[0].split('/');
+                if (dp.length === 3) {
+                    let tStr = parts[1] || '00:00';
+                    let d1 = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${tStr}:00`).getTime(); // Euro
+                    let d2 = new Date(`${dp[2]}-${dp[0].padStart(2,'0')}-${dp[1].padStart(2,'0')}T${tStr}:00`).getTime(); // US
 
-						state.wx.push({
-							start: startHour, end: endHour,
-							wDir: Math.round(worstWind.wDir), wSpd: worstWind.wSpd,
-							seaDir: Math.round(worstSea.seaDir), seaHs: worstSea.seaHs, seaTp: worstSea.seaTp,
-							swDir: Math.round(worstSwell.swDir), swHs: worstSwell.swHs, swTp: worstSwell.swTp,
-							cDir: 0, cSpd: 0 
-						});
-					}
+                    let d1Valid = !isNaN(d1);
+                    let d2Valid = !isNaN(d2);
 
-					sync();
-					alert(`✅ Forecast Synced to Mission Start: ${state.start.toLocaleString()}`);
-				};
-				
-				reader.readAsText(file);
-				event.target.value = "";  
-			}
-			
-			// --- TIDE DATA PARSER & SVG SPARKLINE ---
-			
-			function triggerTide() {
-				if (!state.start) {
-					alert("⚠️ Please load the Main WX Forecast first to anchor the timeline!");
-					return;
-				}
-				$('tide-txt-input').click();
-			}
+                    if (d1Valid && d2Valid) {
+                        rowDate = Math.abs(d1 - missionAnchor) < Math.abs(d2 - missionAnchor) ? d1 : d2;
+                    } else if (d1Valid) { rowDate = d1; } 
+                      else if (d2Valid) { rowDate = d2; }
+                }
+            }
 
-			function handleTideData(event) {
-				const file = event.target.files[0];
-				if (!file) return;
+            if (isNaN(rowDate)) continue;
 
-				const reader = new FileReader();
-				reader.onload = function(e) {
-					const text = e.target.result;
-					// PDF copy-pastes usually separate by newlines
-					const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let hourOffset = (rowDate - missionAnchor) / 3600000; 
+            if (hourOffset < -0.5) continue; // Ignore past data
 
-					let parsedTide = [];
-					let dateRegex = /(\d{2})\/(\d{2})\/(\d{4})/; // Relaxed to ignore hidden spaces
+            parsedData.push({
+                hour: hourOffset,
+                cDir: parseFloat(cols[1]) || 0,
+                cSpd: parseFloat(cols[2]) || 0 
+            });
+        }
 
-					for (let i = 0; i < lines.length; i++) {
-						let match = lines[i].match(dateRegex);
-						
-						if (match) {
-							let day = match[1], month = match[2], year = match[3];
-							// Force ISO standard parsing to avoid browser locale bugs
-							let baseTime = new Date(`${year}-${month}-${day}T00:00:00`).getTime();
+        if (parsedData.length === 0) {
+            alert("❌ ERROR: No valid current data found occurring after your Mission Start Time.\nCheck your file format or start date.");
+            return;
+        }
 
-							// The next 24 lines in the text file are the hourly heights
-							for (let h = 0; h < 24; h++) {
-								if (i + 1 + h < lines.length) {
-									let val = parseFloat(lines[i + 1 + h]);
-									if (!isNaN(val)) {
-										let tTime = baseTime + (h * 3600000);
-										let hourOffset = (tTime - state.start.getTime()) / 3600000;
-										
-										// Only plot data that happens after our mission starts
-										if (hourOffset >= 0) {
-											parsedTide.push({
-												hour: hourOffset,
-												height: val / 100 // Convert cm to meters
-											});
-										}
-									}
-								}
-							}
-							i += 24; // Skip past the 24 numbers we just read
-						}
-					}
-
-					if (parsedTide.length === 0) {
-						alert("Failed to parse Tide Data. Ensure it matches the PDF copy-paste format.");
-						return;
-					}
-
-					state.tide = parsedTide;
-					sync();
-					alert(`✅ Tidal Heights Loaded! Sparkline injected into background.`);
-				};
-				
-				reader.readAsText(file);
-				event.target.value = ""; 
-			}
-
+        state.curr = parsedData;
+        sync();
+        alert(`✅ Tidal Currents Synced! (${parsedData.length} records loaded)`);
+    };
+    
+    reader.readAsText(file);
+    event.target.value = "";  
+}
 			function drawTideSparkline() {
 				if (!state.tide || state.tide.length === 0 || !$('svg-tide')) return;
 
@@ -2714,6 +2640,7 @@
 					</svg>
 				`;
 			}
+			
 			// --- TIDE TOOLTIP ENGINE ---
 			
 			function showTideTooltip(e) {
