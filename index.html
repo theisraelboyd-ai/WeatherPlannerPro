@@ -808,34 +808,53 @@
 					event.target.value = ""; 
 				}
 
-			// 4. Dynamic Dropdown Populator
 			function populateDropdownMenus() {
 				const sel1 = $('op-sel');
 				const edSel1 = $('ed-op-sel');
 				const sel2 = $('op-sel-2');
 				const edSel2 = $('ed-op-sel-2');
+				const btn = $('btn-add-task'); // Assuming your Add Task button has this ID
 
-				if(sel1) sel1.innerHTML = '';
-				if(edSel1) edSel1.innerHTML = '';
-				if(sel2) sel2.innerHTML = '<option value="NONE">-- None --</option>';
-				if(edSel2) edSel2.innerHTML = '<option value="NONE">-- None --</option>';
+				const noneMatrixOpt = '<option value="NONE">-- NO MATRIX (Global Limits Only) --</option>';
+				const noneOpt = '<option value="NONE">-- None --</option>';
+				const awaitingOpt = '<option value="NONE" disabled selected>⚠️ Awaiting Library Data...</option>';
 
-				if (Object.keys(orcaData).length === 0) {
-					 if(sel1) sel1.innerHTML = '<option value="NONE">-- Awaiting Data --</option>';
-					 if(edSel1) edSel1.innerHTML = '<option value="NONE">-- Awaiting Data --</option>';
-					 return;
+				// 1. Set Defaults
+				if(sel1) sel1.innerHTML = noneMatrixOpt + awaitingOpt;
+				if(edSel1) edSel1.innerHTML = noneMatrixOpt + awaitingOpt;
+				if(sel2) sel2.innerHTML = noneOpt;
+				if(edSel2) edSel2.innerHTML = noneOpt;
+
+				// 2. Disable the button while waiting (Safety Shield)
+				if (btn) {
+					btn.disabled = true;
+					btn.style.opacity = '0.5';
+					btn.innerHTML = "⌛ LOADING DATA...";
 				}
 
-				Object.keys(orcaData).forEach(key => {
-					const cleanLabel = key.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
-					const optHTML = `<option value="${key}">${cleanLabel}</option>`;
-					if(sel1) sel1.innerHTML += optHTML;
-					if(edSel1) edSel1.innerHTML += optHTML;
-					if(sel2) sel2.innerHTML += optHTML;
-					if(edSel2) edSel2.innerHTML += optHTML;
-				});
+				// 3. If we have data, clear "Awaiting" and populate
+				if (orcaData && Object.keys(orcaData).length > 0) {
+					// Reset to just the NONE option before adding the library
+					if(sel1) sel1.innerHTML = noneMatrixOpt;
+					if(edSel1) edSel1.innerHTML = noneMatrixOpt;
+
+					Object.keys(orcaData).forEach(key => {
+						const cleanLabel = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+						const optHTML = `<option value="${key}">${cleanLabel}</option>`;
+						if(sel1) sel1.innerHTML += optHTML;
+						if(edSel1) edSel1.innerHTML += optHTML;
+						if(sel2) sel2.innerHTML += optHTML;
+						if(edSel2) edSel2.innerHTML += optHTML;
+					});
+
+					// Re-enable the button
+					if (btn) {
+						btn.disabled = false;
+						btn.style.opacity = '1';
+						btn.innerHTML = "ADD TASK TO TIMELINE";
+					}
+				}
 			}
-			populateDropdownMenus(); 
 
 			// 5. Limit Math Engine
 	function getLimit(analysisId, tp, relDir) {
@@ -1597,8 +1616,15 @@
 			// 9. Operations & Wx Add/Edit Logic
 			function addPhase() {
 				const sel1 = $('op-sel'); const sel2 = $('op-sel-2');
-				if(sel1.value === "NONE" || sel1.options[sel1.selectedIndex].text === "-- Awaiting Data --") { 
-					alert("Please LOAD FILES first!"); return; 
+				if (sel1.value === "NONE" && !$('op-has-wave-limit').checked && !$('op-has-limit').checked) {
+					alert("Please either select Analysis Data or enable a Global/Sector Limit!");
+					return;
+				}
+				
+							// If the library hasn't loaded and they haven't explicitly chosen NO MATRIX
+				if (sel1.options[sel1.selectedIndex].text.includes("Awaiting")) {
+					alert("⚠️ System is still loading Analysis Data. Please wait a moment or select 'NO MATRIX' to proceed manually.");
+					return;
 				}
 				
 				// Decoupled task naming logic with smart fallback
