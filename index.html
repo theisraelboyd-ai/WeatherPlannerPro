@@ -2612,6 +2612,80 @@ function handleStormGeoCurrentCSV(event) {
     reader.readAsText(file);
     event.target.value = "";  
 }
+
+function triggerTide() {
+    const input = document.getElementById('tide-txt-input');
+    if (input) {
+        input.click();
+    } else {
+        console.error("Could not find the hidden tide input element.");
+    }
+}
+
+function handleTideData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const text = event.target.result;
+        // Clean up the data: split into lines, trim spaces/quotes, remove empty rows
+        const rows = text.split(/\r?\n/)
+                         .map(r => r.replace(/"/g, '').trim()) 
+                         .filter(r => r.length > 0);
+        
+        let processedTide = [];
+        let i = 0;
+
+        while (i < rows.length) {
+            let row = rows[i];
+
+            // 1. Skip non-date headers (like "April" or "00:00")
+            if (!row.includes('/') || row.includes(':')) {
+                i++;
+                continue;
+            }
+
+            // 2. We found a date (e.g., "01/04/2026")
+            let dateStr = row;
+            let [d, m, y] = dateStr.split('/').map(Number);
+            let rowDate = new Date(y, m - 1, d, 0, 0);
+
+            // 3. The next 24 rows MUST be the hourly values
+            for (let hour = 0; hour < 24; hour++) {
+                i++; // Move to the next row for the value
+                if (i >= rows.length) break;
+
+                let val = parseFloat(rows[i]);
+                
+                if (!isNaN(val) && state.start) {
+                    // Calculate offset from timeline zero-point
+                    let elapsed = (rowDate.getTime() - state.start.getTime()) / 3600000 + hour;
+                    
+                    if (elapsed >= 0) {
+                        processedTide.push({
+                            hour: elapsed,
+                            height: val / 100 // cm to meters
+                        });
+                    }
+                }
+            }
+            i++; // Advance past the last hour value to check for the next date
+        }
+
+        // Finalize and refresh
+        if (processedTide.length > 0) {
+            state.tide = processedTide.sort((a, b) => a.hour - b.hour);
+            console.log(`Tide Sync: Processed ${state.tide.length} hourly points.`);
+            sync(); 
+            if (window.drawTideSparkline) drawTideSparkline();
+        } else {
+            alert("⚠️ No tide data matched. Ensure StormGeo WX is loaded first to set the timeline start date.");
+        }
+    };
+    reader.readAsText(file);
+}
+
 			function drawTideSparkline() {
 				if (!state.tide || state.tide.length === 0 || !$('svg-tide')) return;
 
@@ -2693,6 +2767,7 @@ function handleStormGeoCurrentCSV(event) {
 			function hideTideTooltip() {
 				if ($('tide-tooltip')) $('tide-tooltip').style.display = 'none';
 			}
+			
 			
 			// --- SMART ONBOARDING (Runs once on load) ---
 			window.addEventListener('DOMContentLoaded', () => {
