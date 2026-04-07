@@ -2476,28 +2476,59 @@
 				$('curr-csv-input').click();
 			}
 
-			function handleStormGeoCurrentCSV(event) {
+			function handleStormGeoCSV(event) {
 				const file = event.target.files[0];
 				if (!file) return;
+
+				// Ensure we have a valid Mission Start to anchor to
+				if (!state.start) {
+					alert("⚠️ Please set a MISSION START TIME in the header first!");
+					return;
+				}
+
+				let inputDur = prompt("Enter Weather Block Duration in Hours (Minimum 6):", "6");
+				if (inputDur === null) return; 
+				let bucketSize = parseFloat(inputDur);
+				if (isNaN(bucketSize) || bucketSize < 6) bucketSize = 6;
 
 				const reader = new FileReader();
 				reader.onload = function(e) {
 					const text = e.target.result;
 					const rows = text.split('\n').filter(r => r.trim().length > 0);
-					
-					let parsedCurr = [];
-					let delimiter = ',';
-					if (rows[0].includes('\t')) delimiter = '\t';
-					else if (rows[0].includes(';')) delimiter = ';';
+					let delimiter = rows[0].includes('\t') ? '\t' : (rows[0].includes(';') ? ';' : ',');
+
+					// 1. Dynamic Header Mapping
+					let headers = rows[0].split(delimiter).map(h => h.replace(/['"]/g, '').trim().toLowerCase());
+					let getIdx = (keywords) => {
+						for (let kw of keywords) {
+							let idx = headers.findIndex(h => h === kw || h.includes(kw));
+							if (idx !== -1) return idx;
+						}
+						return -1;
+					};
+
+					let map = {
+						wDir: getIdx(['winddirection']), wSpd: getIdx(['windspeed']), 
+						swDir: getIdx(['primarywavedirection', 'swelldirection']),
+						swHs: getIdx(['swellheig', 'primarywaveheight']),
+						swTp: getIdx(['primarywaveperiod', 'swellperiod']),
+						seaDir: getIdx(['secondarywavedirection', 'windwavedirection']),
+						seaHs: getIdx(['windwaveheight', 'secondarywaveheight']),
+						seaTp: getIdx(['secondarywaveperiod', 'windwaveperiod'])
+					};
+
+					let parsedData = [];
+					let missionAnchor = state.start.getTime(); // THE MASTER ZERO
 					
 					for (let i = 1; i < rows.length; i++) {
 						let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
-						if (cols.length < 3) continue; 
+						if (cols.length < 10) continue;
 						
 						let timeString = cols[0];
-						let rowDate;
+						let rowDate = new Date(timeString).getTime(); 
 						
-						if (timeString.includes('/')) {
+						// Failsafe for DD/MM/YYYY
+						if (isNaN(rowDate) && timeString.includes('/')) {
 							let parts = timeString.split(/[ T]/); 
 							let dateParts = parts[0].split('/');
 							if (dateParts.length === 3) {
@@ -2505,46 +2536,61 @@
 							}
 						}
 						
-						if (!rowDate || isNaN(rowDate)) rowDate = new Date(timeString).getTime(); 
 						if (isNaN(rowDate)) continue;
-						
-						let hourOffset = (rowDate - state.start.getTime()) / 3600000; 
 
-						if (hourOffset >= 0) {
-							parsedCurr.push({
-								hour: hourOffset,
-								cDir: parseFloat(cols[1]) || 0,		
-								cSpd: (parseFloat(cols[2]) || 0) * 1.94384 // CONVERT M/S TO KNOTS
-							});
-						}
+						// --- THE ANCHOR FIX ---
+						// Calculate offset relative to the Mission Start Time
+						let hourOffset = (rowDate - missionAnchor) / 3600000; 
+
+						// Skip weather that happened before the current Mission Start
+						if (hourOffset < -0.5) continue; 
+
+						parsedData.push({
+							hour: hourOffset,
+							wDir: parseFloat(cols[map.wDir]) || 0,		
+							wSpd: (parseFloat(cols[map.wSpd]) || 0) * 1.94384,
+							swDir: parseFloat(cols[map.swDir]) || 0,	
+							swHs: parseFloat(cols[map.swHs]) || 0,	  
+							swTp: parseFloat(cols[map.swTp]) || 0,
+							seaDir: parseFloat(cols[map.seaDir]) || 0,	
+							seaHs: parseFloat(cols[map.seaHs]) || 0, 
+							seaTp: parseFloat(cols[map.seaTp]) || 0
+						});
 					}
 
-					if (parsedCurr.length === 0) {
-						alert("Failed to parse data or dates do not overlap with existing timeline.");
+					if (parsedData.length === 0) {
+						alert("❌ ERROR: No weather data found occurring after your Mission Start Time.");
 						return;
 					}
 
-					// 1. Save the hourly data globally for the real-time simulation
-					state.curr = parsedCurr;
+					// 2. Worst-Case Aggregator (Aggregates from T=0 relative to mission)
+					state.wx = [];
+					let maxHour = parsedData[parsedData.length - 1].hour;
+					
+					for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
+						let endHour = startHour + bucketSize;
+						let chunk = parsedData.filter(d => d.hour >= startHour && d.hour < endHour);
+						if (chunk.length === 0) continue;
 
-					// 2. Inject the MAX current into the 6-hour Wx blocks just for the static UI
-					state.wx.forEach(w => {
-						let chunk = parsedCurr.filter(d => d.hour >= w.start && d.hour < w.end);
-						if (chunk.length > 0) {
-							let worstCurr = chunk.reduce((max, cur) => cur.cSpd > max.cSpd ? cur : max, chunk[0]);
-							w.cDir = Math.round(worstCurr.cDir);
-							w.cSpd = worstCurr.cSpd;
-						} else {
-							w.cDir = 0; w.cSpd = 0; 
-						}
-					});
+						let worstWind = chunk.reduce((max, cur) => cur.wSpd > max.wSpd ? cur : max, chunk[0]);
+						let worstSea = chunk.reduce((max, cur) => cur.seaHs > max.seaHs ? cur : max, chunk[0]);
+						let worstSwell = chunk.reduce((max, cur) => cur.swHs > max.swHs ? cur : max, chunk[0]);
+
+						state.wx.push({
+							start: startHour, end: endHour,
+							wDir: Math.round(worstWind.wDir), wSpd: worstWind.wSpd,
+							seaDir: Math.round(worstSea.seaDir), seaHs: worstSea.seaHs, seaTp: worstSea.seaTp,
+							swDir: Math.round(worstSwell.swDir), swHs: worstSwell.swHs, swTp: worstSwell.swTp,
+							cDir: 0, cSpd: 0 
+						});
+					}
 
 					sync();
-					alert(`✅ Hourly Current Data loaded! Simulation will now track the tide every hour.`);
+					alert(`✅ Forecast Synced to Mission Start: ${state.start.toLocaleString()}`);
 				};
 				
 				reader.readAsText(file);
-				event.target.value = ""; 
+				event.target.value = "";  
 			}
 			
 			// --- TIDE DATA PARSER & SVG SPARKLINE ---
