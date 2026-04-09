@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="mobile-web-app-capable" content="yes">
+	<link rel="manifest" href="manifest.json">
+	<title>WxPlanner</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg: #040810; --accent: #00d4ff; --safe: #00e887;
+			--muted: #4a6080; --border: #1a2d4a; --text: #e8f4ff;
+			--mono: 'Share Tech Mono', monospace;
+			--sans: 'Barlow Condensed', sans-serif;
+		}
+		* { box-sizing: border-box; margin: 0; padding: 0; }
+		body {
+			font-family: var(--sans);
+			background: var(--bg); color: var(--text);
+			height: 100dvh; display: flex;
+			flex-direction: column; align-items: center; justify-content: center;
+			gap: 28px; padding: 24px;
+			background-image:
+				linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+			background-size: 40px 40px;
+		}
+		body::after {
+			content: ''; position: fixed; inset: 0; pointer-events: none;
+			background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+		}
+		.logo {
+			text-align: center; display: flex; flex-direction: column; gap: 6px;
+		}
+		.logo-icon { font-size: 3rem; }
+		.logo-title {
+			font-size: 1.6rem; font-weight: 900; letter-spacing: 5px;
+			text-transform: uppercase; color: var(--accent);
+			text-shadow: 0 0 30px rgba(0,212,255,0.5);
+		}
+		.logo-sub {
+			font-family: var(--mono); font-size: 0.72rem;
+			color: var(--muted); letter-spacing: 2px;
+		}
+
+		.detecting {
+			font-family: var(--mono); font-size: 0.75rem;
+			color: var(--safe); letter-spacing: 2px;
+			animation: pulse 1.2s ease-in-out infinite;
+		}
+		@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+		.btn-row { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px; }
+
+		.launch-btn {
+			width: 100%; padding: 16px; border-radius: 8px;
+			border: 1px solid var(--border); background: rgba(12,22,40,0.8);
+			color: var(--text); font-family: var(--sans);
+			font-size: 0.95rem; font-weight: 700; letter-spacing: 2px;
+			text-transform: uppercase; cursor: pointer; transition: 0.2s;
+			display: flex; align-items: center; gap: 14px;
+			text-decoration: none;
+		}
+		.launch-btn:hover { border-color: var(--accent); background: rgba(0,212,255,0.06); }
+		.launch-btn.primary {
+			border-color: rgba(0,212,255,0.4);
+			background: linear-gradient(135deg, rgba(0,92,112,0.6), rgba(0,122,94,0.4));
+			box-shadow: 0 4px 20px rgba(0,212,255,0.15);
+		}
+		.launch-btn .btn-icon { font-size: 1.4rem; flex-shrink: 0; }
+		.launch-btn .btn-text { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+		.launch-btn .btn-label { font-size: 0.95rem; font-weight: 900; letter-spacing: 2px; }
+		.launch-btn .btn-desc  { font-size: 0.65rem; color: var(--muted); letter-spacing: 1px; font-weight: 400; }
+		.launch-btn.primary .btn-label { color: var(--accent); }
+
+		.divider {
+			display: flex; align-items: center; gap: 10px; width: 100%; max-width: 340px;
+			font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+			letter-spacing: 2px; text-transform: uppercase;
+		}
+		.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+		.version {
+			font-family: var(--mono); font-size: 0.6rem;
+			color: var(--muted); letter-spacing: 1px; text-align: center;
+		}
+	</style>
+</head>
+<body>
+
+<div class="logo">
+	<div class="logo-icon">⛵</div>
+	<div class="logo-title">WxPlanner</div>
+	<div class="logo-sub">Offshore Operations · Weather Intelligence</div>
+</div>
+
+<div class="detecting" id="detecting-msg">Detecting device...</div>
+
+<div class="btn-row" id="btn-row" style="display:none;">
+	<a class="launch-btn primary" id="btn-recommended" href="#">
+		<div class="btn-icon" id="rec-icon">📱</div>
+		<div class="btn-text">
+			<div class="btn-label" id="rec-label">Mobile Field View</div>
+			<div class="btn-desc" id="rec-desc">Recommended for your device</div>
+		</div>
+	</a>
+
+	<div class="divider">or open manually</div>
+
+	<a class="launch-btn" id="btn-mobile" href="WxPlanner_Field.html">
+		<div class="btn-icon">📱</div>
+		<div class="btn-text">
+			<div class="btn-label">Field App</div>
+			<div class="btn-desc">Load plan · Import weather · Pass/Fail · Live compass</div>
+		</div>
+	</a>
+
+	<a class="launch-btn" id="btn-desktop" href="WeatherPlannerPro_fixed.html">
+		<div class="btn-icon">🖥️</div>
+		<div class="btn-text">
+			<div class="btn-label">Desktop Planner</div>
+			<div class="btn-desc">Full planning suite · Compass · Simulation · Print</div>
+		</div>
+	</a>
+</div>
+
+<div class="version">WxPlanner v1.0 · Both apps work offline once loaded</div>
+
+<script>
+	// Robust mobile detection — UA string is most reliable for Android PWA launches
+	const ua = navigator.userAgent || '';
+	const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile/i.test(ua);
+	const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+	const isNarrow = window.innerWidth < 1024;
+	const isMobile = isMobileUA || (isTouchDevice && isNarrow) || (isTouchDevice && window.innerWidth <= window.innerHeight);
+
+	// Check if user previously overrode the auto-redirect
+	const manualOverride = sessionStorage.getItem('wxplanner_manual');
+
+	const detMsg  = document.getElementById('detecting-msg');
+	const btnRow  = document.getElementById('btn-row');
+	const recBtn  = document.getElementById('btn-recommended');
+	const recIcon = document.getElementById('rec-icon');
+	const recLabel = document.getElementById('rec-label');
+	const recDesc  = document.getElementById('rec-desc');
+
+	if (isMobile) {
+		recIcon.textContent  = '📱';
+		recLabel.textContent = 'Field App';
+		recDesc.textContent  = 'Recommended for mobile · tap to open';
+		recBtn.href = 'WxPlanner_Field.html';
+	} else {
+		recIcon.textContent  = '🖥️';
+		recLabel.textContent = 'Desktop Planner';
+		recDesc.textContent  = 'Recommended for your screen · click to open';
+		recBtn.href = 'WeatherPlannerPro_fixed.html';
+	}
+
+	if (manualOverride) {
+		// User previously chose manually — just show buttons, no auto-redirect
+		detMsg.textContent = 'Choose your view:';
+		detMsg.style.animation = 'none';
+		detMsg.style.color = 'var(--muted)';
+		btnRow.style.display = 'flex';
+	} else {
+		// Auto-redirect after 1.2s
+		setTimeout(() => {
+			detMsg.textContent = isMobile ? 'Mobile detected — opening Field App...' : 'Desktop detected — opening Planner...';
+			setTimeout(() => {
+				window.location.href = isMobile ? 'WxPlanner_Field.html' : 'WeatherPlannerPro_fixed.html';
+			}, 800);
+		}, 1200);
+
+		// Show manual options after a short delay as escape hatch
+		setTimeout(() => {
+			btnRow.style.display = 'flex';
+		}, 400);
+	}
+</script>
+</body>
+</html>
