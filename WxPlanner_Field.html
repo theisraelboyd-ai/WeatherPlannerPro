@@ -805,7 +805,10 @@
 		<div class="topbar-sub" id="plan-sub">NO PLAN LOADED</div>
 	</div>
 	<div class="topbar-right">
-		<div class="clock-badge" id="live-clock">--:-- UTC</div>
+		<div class="clock-badge" id="live-clock" onclick="showMissionStartEdit()" title="Tap to set mission start time" style="cursor:pointer;">
+		<span style="font-size:0.55rem; display:block; opacity:0.6; letter-spacing:1px; margin-bottom:1px;">MISSION START</span>
+		<span id="mission-start-display">NOT SET</span>
+	</div>
 		<a href="WeatherPlannerPro_fixed.html"
 			onclick="sessionStorage.setItem('wxplanner_manual','1')"
 			class="desktop-topbar-btn"
@@ -851,6 +854,28 @@
 		</div>
 	</div>
 
+	<!-- Mission Start Override -->
+	<div class="card" id="mission-start-card" style="padding:12px 14px; margin-bottom:2px;">
+		<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+			<div style="font-size:0.65rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#b0c4d8;">Mission Start Time</div>
+			<div style="font-size:0.6rem; color:var(--muted); font-style:italic;">Sets weather T+0 offset</div>
+		</div>
+		<div style="display:flex; gap:8px; align-items:center;">
+			<input type="datetime-local" id="mission-start-input"
+				style="flex:1; background:#020617; border:1px solid var(--accent); color:#fff;
+				       padding:8px 10px; border-radius:4px; font-size:0.88rem; font-family:var(--mono);
+				       font-weight:700; color-scheme:dark;"
+				onchange="applyMissionStart()">
+			<button onclick="applyMissionStart()" style="padding:8px 12px; background:var(--accent); color:#000;
+				border:none; border-radius:4px; font-weight:700; font-size:0.72rem; letter-spacing:1px;
+				font-family:var(--sans); cursor:pointer; white-space:nowrap;">SET</button>
+		</div>
+		<button id="use-forecast-start-btn" onclick="useForecastStart()" style="display:none; width:100%; margin-top:6px; padding:8px; background:rgba(255,184,0,0.1); border:1px solid var(--warn); color:var(--warn); border-radius:4px; font-weight:700; font-size:0.72rem; letter-spacing:1px; font-family:var(--sans); cursor:pointer;">
+			⚡ USE FORECAST START TIME
+		</button>
+		<div id="mission-start-status" style="font-size:0.65rem; color:var(--muted); margin-top:6px; font-family:var(--mono);">—</div>
+	</div>
+
 	<div class="sec">Weather Forecast</div>
 	<div class="wx-import-row">
 		<div class="wx-import-btn" id="wx-main-btn">
@@ -871,6 +896,10 @@
 			<div class="wx-import-label">Tidal<br>Data</div>
 			<div class="wx-import-count" id="wx-tide-count">—</div>
 		</div>
+	</div>
+
+	<div id="wx-window-badge" style="display:none; margin:6px 0; padding:8px 14px; border-radius:6px; font-size:0.78rem; font-weight:700; letter-spacing:1px; text-align:center; background:rgba(255,59,59,0.15); border:1px solid var(--danger); color:var(--danger);">
+		🚫 NO FORECAST DATA IN MISSION WINDOW
 	</div>
 
 	<div id="wx-bucket-row" style="display:none">
@@ -923,6 +952,12 @@
 			<div style="font-size:2.5rem">⚓</div>
 			<p>Load a plan and<br>weather forecast first</p>
 			<button class="sim-btn active" style="width:160px;" onclick="showPage('load')">GO TO LOAD</button>
+		</div>
+
+		<div class="no-plan-overlay" id="live-no-wx" style="display:none;">
+			<div style="font-size:2.5rem">🚫</div>
+			<p style="color:var(--danger);">No forecast data<br>in mission window</p>
+			<button class="sim-btn" style="width:180px; border-color:var(--warn); color:var(--warn);" onclick="showPage('load')">ADJUST MISSION START</button>
 		</div>
 
 		<!-- Alert strip -->
@@ -1228,13 +1263,129 @@ let state = {
 // ═══════════════════════════════════════════════════
 // CLOCK
 // ═══════════════════════════════════════════════════
-function updateClock() {
-	const now = new Date();
-	const pad = n => String(n).padStart(2,'0');
-	document.getElementById('live-clock').textContent =
-		`${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`;
+function updateMissionStartBadge() {
+	const display = document.getElementById('mission-start-display');
+	if (!display) return;
+	if (state.missionStart) {
+		const pad = n => String(n).padStart(2,'0');
+		const d = state.missionStart;
+		display.textContent = `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+		display.parentElement.style.borderColor = 'rgba(0,232,135,0.4)';
+	} else {
+		display.textContent = 'NOT SET';
+		display.parentElement.style.borderColor = 'rgba(255,184,0,0.4)';
+		display.parentElement.style.color = 'var(--warn)';
+	}
 }
-updateClock();
+
+function showMissionStartEdit() {
+	// Scroll to load page mission start input
+	const input = document.getElementById('mission-start-input');
+	if (input) {
+		// Navigate to load tab
+		document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+		document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+		document.getElementById('page-load').classList.add('active');
+		const tabBtns = document.querySelectorAll('.tab-btn');
+		if (tabBtns[0]) tabBtns[0].classList.add('active');
+		setTimeout(() => { input.focus(); input.scrollIntoView({behavior:'smooth', block:'center'}); }, 100);
+	}
+}
+
+function syncMissionStartInput() {
+	// Keep the datetime-local input in sync with state.missionStart
+	const input = document.getElementById('mission-start-input');
+	const status = document.getElementById('mission-start-status');
+	if (input && state.missionStart) {
+		const d = state.missionStart;
+		const pad = n => String(n).padStart(2,'0');
+		input.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+		if (status) {
+			status.textContent = `✓ From plan: ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+			status.style.color = 'var(--muted)';
+		}
+	}
+	updateMissionStartBadge();
+}
+
+function useForecastStart() {
+	if (!state.wxRaw || !state.wxRaw.length) return;
+	const firstTs = Math.min(...state.wxRaw.map(r => r.ts));
+	const d = new Date(firstTs);
+	const pad = n => String(n).padStart(2,'0');
+	const input = document.getElementById('mission-start-input');
+	if (input) input.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	applyMissionStart();
+}
+
+function applyMissionStart() {
+	const val = document.getElementById('mission-start-input').value;
+	if (!val) { toast('Please enter a mission start date/time', true); return; }
+	state.missionStart = new Date(val);
+	const status = document.getElementById('mission-start-status');
+	if (status) {
+		const pad = n => String(n).padStart(2,'0');
+		const d = state.missionStart;
+		status.textContent = `✓ Set: ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+		status.style.color = 'var(--safe)';
+	}
+	updateMissionStartBadge();
+	if (state.wxRaw && state.wxRaw.length) {
+		bucketWeather();
+		const countEl = document.getElementById('wx-main-count');
+		if (state.wx.length) {
+			if (countEl) countEl.textContent = `${state.wx.length} blocks`;
+			document.getElementById('wx-main-btn').classList.add('loaded');
+			if (typeof initLiveView === 'function') initLiveView();
+			checkForecastAge();
+			window._autoAnalysisRan = false;
+
+			// Warn if forecast doesn't start at T+0 — ops before forecast start will show NO DATA
+			const firstWxHr = state.wx[0].start;
+			const forecastBtn = document.getElementById('use-forecast-start-btn');
+			const status = document.getElementById('mission-start-status');
+			if (firstWxHr > 0.5) {
+				const gapH = Math.round(firstWxHr);
+				if (forecastBtn) forecastBtn.style.display = 'block';
+				if (status) {
+					status.textContent = `⚠ Forecast begins T+${gapH}h — ops before this will show NO DATA`;
+					status.style.color = 'var(--warn)';
+				}
+				toast(`⚠ Weather starts T+${gapH}h into mission — first ops have no forecast`);
+			} else {
+				if (forecastBtn) forecastBtn.style.display = 'none';
+				if (status) {
+					const pad = n => String(n).padStart(2,'0');
+					const d = state.missionStart;
+					status.textContent = `✓ Set: ${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+					status.style.color = 'var(--safe)';
+				}
+				toast('✅ Mission start updated — weather re-anchored');
+			}
+		} else {
+			// Forecast entirely outside mission window
+			if (countEl) countEl.textContent = '⚠ NO DATA';
+			document.getElementById('wx-main-btn').classList.remove('loaded');
+			document.getElementById('wx-main-btn').classList.add('stale');
+			// Tell user when the forecast actually starts
+			if (state.wxRaw.length) {
+				const firstTs  = Math.min(...state.wxRaw.map(r => r.ts));
+				const gapHrs   = (firstTs - state.missionStart.getTime()) / 3_600_000;
+				if (gapHrs > 0) {
+					toast(`⚠ Forecast starts ${gapHrs.toFixed(0)}h after mission start — move start to ${formatAbsTime(new Date(firstTs))} or later`, true);
+				} else {
+					toast('⚠ No forecast data in this mission window — check start time', true);
+				}
+			}
+		}
+		checkRunReady();
+	} else {
+		toast('✅ Mission start set');
+	}
+}
+
+// Legacy clock (no-op now)
+function updateClock() {}
 setInterval(updateClock, 15000);
 
 // ═══════════════════════════════════════════════════
@@ -1291,6 +1442,7 @@ function loadPlanFromText(text, fileName) {
 
 		state.projectName  = data.projectName || fileName;
 		state.missionStart = data.missionStart ? new Date(data.missionStart) : null;
+		syncMissionStartInput();
 		state.ops          = data.operations   || [];
 		state.tide         = data.tideData     || [];
 		state.orcaData     = {};
@@ -1356,7 +1508,7 @@ function loadMobilePlanCSV(text, fileName) {
 		if (line.startsWith('# Project,'))     { state.projectName = line.split(',').slice(1).join(',').trim(); continue; }
 		if (line.startsWith('# MissionStart,')) {
 			const iso = line.split(',')[1];
-			if (iso) state.missionStart = new Date(iso.trim());
+			if (iso) { state.missionStart = new Date(iso.trim()); syncMissionStartInput(); }
 			continue;
 		}
 		if (line.startsWith('#')) continue;
@@ -1465,33 +1617,58 @@ function parseStormGeoWeather(text) {
 
 	let parsedData   = [];
 	let firstDateMs  = null;
-	const anchor     = state.missionStart ? state.missionStart.getTime() : null;
+	let lastDateMs   = null;
 
+	// Helper — returns ms if string looks like a real forecast datetime, else NaN
+	function parseRowDate(s) {
+		if (!s || s.length < 8) return NaN;
+		// Must contain digits and a date-like separator
+		if (!/\d{4}/.test(s) && !/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(s)) return NaN;
+		let d = new Date(s).getTime();
+		if (isNaN(d) && s.includes('/')) {
+			const parts = s.split(/[ T]/);
+			const dp    = parts[0].split('/');
+			if (dp.length === 3)
+				d = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${parts[1]||'00:00'}:00`).getTime();
+		}
+		// Sanity check — must be between 2020 and 2035
+		if (isNaN(d)) return NaN;
+		const yr = new Date(d).getFullYear();
+		return (yr >= 2020 && yr <= 2035) ? d : NaN;
+	}
+
+	// ── PASS 1: collect all valid timestamps to find true span ──
+	for (let i = 1; i < rows.length; i++) {
+		const cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g,'').trim());
+		if (cols.length < 4) continue;
+		const d = parseRowDate(cols[0]);
+		if (!isNaN(d)) {
+			if (firstDateMs === null || d < firstDateMs) firstDateMs = d;
+			if (lastDateMs  === null || d > lastDateMs)  lastDateMs  = d;
+		}
+	}
+	if (firstDateMs === null) { toast('No valid dates in weather file', true); return; }
+
+	// ── ANCHOR: set once, before any row processing ──
+	const missionAnchor    = state.missionStart ? state.missionStart.getTime() : firstDateMs;
+	const forecastSpanHrs  = (lastDateMs - missionAnchor) / MS_PER_HOUR;
+
+	// ── PASS 2: build parsedData with fixed anchor ──
 	for (let i = 1; i < rows.length; i++) {
 		const cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g,'').trim());
 		if (cols.length < 10) continue;
 
-		let rowDate = new Date(cols[0]).getTime();
-		if (isNaN(rowDate) && cols[0].includes('/')) {
-			const parts = cols[0].split(/[ T]/);
-			const dp    = parts[0].split('/');
-			if (dp.length === 3) {
-				rowDate = new Date(
-					`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${parts[1]||'00:00'}:00`
-				).getTime();
-			}
-		}
+		const rowDate = parseRowDate(cols[0]);
 		if (isNaN(rowDate)) continue;
-		if (firstDateMs === null) firstDateMs = rowDate;
 
-		const missionAnchor = anchor || firstDateMs;
-		const hourOffset    = (rowDate - missionAnchor) / MS_PER_HOUR;
+		const hourOffset = (rowDate - missionAnchor) / MS_PER_HOUR;
 		if (hourOffset < -0.5) continue;
+		if (hourOffset > forecastSpanHrs + 0.5) continue;
 
 		parsedData.push({
-			hour:   hourOffset,
+			ts:     rowDate,   // absolute ms timestamp — offset calculated fresh in bucketWeather()
 			wDir:   parseFloat(cols[map.wDir])  || 0,
-			wSpd:  (parseFloat(cols[map.wSpd])  || 0) * 1.94384,  // m/s → kts
+			wSpd:  (parseFloat(cols[map.wSpd])  || 0) * 1.94384,
 			swDir:  parseFloat(cols[map.swDir]) || 0,
 			swHs:   parseFloat(cols[map.swHs])  || 0,
 			swTp:   parseFloat(cols[map.swTp])  || 0,
@@ -1506,6 +1683,7 @@ function parseStormGeoWeather(text) {
 	// Auto-set mission start from CSV if not in plan
 	if (!state.missionStart && firstDateMs) {
 		state.missionStart = new Date(firstDateMs);
+		syncMissionStartInput();
 	}
 	// Store absolute start of forecast for age checking
 	state.wxAbsoluteStart = firstDateMs ? new Date(firstDateMs) : null;
@@ -1530,12 +1708,38 @@ function bucketWeather() {
 	const bucketSize = parseFloat(document.getElementById('bucket-size').value) || 6;
 	if (!state.wxRaw.length) return;
 	state.bucketSize = bucketSize;
-	const maxHour    = state.wxRaw[state.wxRaw.length - 1].hour;
-	state.wx         = [];
 
-	for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
-		const endHour = startHour + bucketSize;
-		const chunk   = state.wxRaw.filter(d => d.hour >= startHour && d.hour < endHour);
+	// Compute offsets from current mission start — this is recalculated every call
+	// so changing state.missionStart always re-anchors correctly
+	const anchor = state.missionStart ? state.missionStart.getTime()
+	                                  : state.wxRaw[0].ts;
+
+	// Convert absolute timestamps to hour offsets, filter pre-mission rows
+	const lastTs    = state.wxRaw[state.wxRaw.length - 1].ts;
+	const maxHour   = (lastTs - anchor) / MS_PER_HOUR;
+
+	const withHours = state.wxRaw
+		.map(d => ({ ...d, hour: (d.ts - anchor) / MS_PER_HOUR }))
+		.filter(d => d.hour >= -0.5 && d.hour <= maxHour + 0.5);
+
+	const noBadge = document.getElementById('wx-window-badge');
+	if (withHours.length === 0) {
+		state.wx = [];
+		if (noBadge) noBadge.style.display = 'block';
+		const noWx = document.getElementById('live-no-wx');
+		if (noWx) noWx.style.display = 'flex';
+		return;
+	}
+	if (noBadge) noBadge.style.display = 'none';
+	const noWx2 = document.getElementById('live-no-wx');
+	if (noWx2) noWx2.style.display = 'none';
+
+	const actualMax = withHours[withHours.length - 1].hour;
+	state.wx = [];
+
+	for (let startHour = 0; startHour <= actualMax; startHour += bucketSize) {
+		const endHour = Math.min(startHour + bucketSize, actualMax + 0.001);
+		const chunk   = withHours.filter(d => d.hour >= startHour && d.hour < endHour);
 		if (chunk.length === 0) continue;
 
 		const worstWind  = chunk.reduce((m,c) => c.wSpd  > m.wSpd  ? c : m, chunk[0]);
@@ -2098,6 +2302,15 @@ function toggleTaskComplete() {
 		}
 	}
 
+	if (op.completed) {
+		// Advance live view to end of last completed task
+		const lastDone = [...state.ops].reverse().find(o => o.completed);
+		if (lastDone && lastDone.end > lv.t) lv.t = lastDone.end;
+		// Prompt re-run — weather blocks shift relative to new operational position
+		toast('⚠ Task complete — re-run analysis to update verdicts');
+		window._autoAnalysisRan = false;
+	}
+
 	// Re-render results list and task block
 	if (window._lastOpResults) renderResults(window._lastOpResults);
 	if (typeof buildTimelineTracks === 'function') buildTimelineTracks();
@@ -2133,6 +2346,14 @@ function checkForecastAge() {
 
 	const limitHrs = parseFloat(document.getElementById('forecast-age-limit')?.value) || 24;
 	const ageHrs   = (Date.now() - state.wxAbsoluteStart.getTime()) / 3_600_000;
+
+	// Negative age means forecast starts in the future — it's fresh, not stale
+	if (ageHrs < 0) {
+		banner.style.cssText = 'display:block; border-radius:6px; padding:8px 14px; margin-top:6px; font-size:0.78rem; font-weight:700; letter-spacing:1px; text-align:center; background:rgba(0,232,135,0.08); border:1px solid var(--safe); color:var(--safe);';
+		banner.textContent = `✓ FORECAST CURRENT — starts in ${Math.abs(ageHrs).toFixed(0)}h`;
+		return;
+	}
+
 	const ageLabel = ageHrs < 1
 		? `${Math.round(ageHrs * 60)} min`
 		: `${ageHrs.toFixed(1)} hrs`;
@@ -2210,9 +2431,30 @@ function initLiveView() {
 	const maxOp = state.ops.length ? state.ops[state.ops.length-1].end : 0;
 	const maxWx = state.wx.length ? state.wx[state.wx.length-1].end  : 0;
 	lv.t_pop = Math.max(24, maxOp, maxWx);
-	lv.t = 0;
-	lv.hdg = state.ops.length ? (state.ops[0].fixedHdg || 0) : 0;
+
+	// Reset currentTaskIdx to first incomplete task so navigation is correct
+	// after a mission start change or fresh wx load
+	const firstIncomplete = state.ops.findIndex(o => !o.completed);
+	currentTaskIdx = firstIncomplete >= 0 ? firstIncomplete : 0;
+
+	// Start lv.t from end of last completed task, or start of first incomplete
+	const lastDone = [...state.ops].reverse().find(o => o.completed);
+	if (lastDone) {
+		lv.t = lastDone.end;
+	} else if (firstIncomplete >= 0) {
+		lv.t = state.ops[firstIncomplete].start;
+	} else {
+		lv.t = 0;
+	}
+
+	// Clamp lv.t to wx window — prevent it sitting beyond forecast
+	const wxEnd = state.wx.length ? state.wx[state.wx.length-1].end : lv.t_pop;
+	if (lv.t > wxEnd) lv.t = Math.max(0, wxEnd - 0.1);
+
+	lv.hdg = state.ops.length ? (state.ops[currentTaskIdx]?.fixedHdg || state.ops[0].fixedHdg || 0) : 0;
 	document.getElementById('live-no-plan').style.display = 'none';
+	const noWxOverlay = document.getElementById('live-no-wx');
+	if (noWxOverlay) noWxOverlay.style.display = state.wx.length ? 'none' : 'flex';
 	buildTimelineTracks();
 	updateLiveView();
 }
@@ -2230,14 +2472,23 @@ function buildTimelineTracks() {
 	}
 	rebuildTaskDots();
 	updateTaskNav();
-	renderTaskBlock(currentTaskIdx, null);  // use current, not hardcoded 0
+	renderTaskBlock(currentTaskIdx, null);
+	// Timeline labels — use mission start as T+0 label, wx end as the far end
+	const _wxEnd = state.wx.length ? state.wx[state.wx.length-1].end : lv.t_pop;
+	const _lastDoneEnd = (() => { const d = [...state.ops].reverse().find(o => o.completed); return d ? d.end : 0; })();
+	const _remaining = _wxEnd - _lastDoneEnd;
 	if (state.missionStart) {
 		const t0 = state.missionStart;
 		const pad = n => String(n).padStart(2,'0');
+		// T0 label = mission start + lastDoneEnd offset (the real "now" in the operation)
+		const tNow = new Date(t0.getTime() + _lastDoneEnd * 3600000);
 		document.getElementById('tl-t0').textContent =
-			`${pad(t0.getDate())}/${pad(t0.getMonth()+1)} ${pad(t0.getHours())}:${pad(t0.getMinutes())}`;
-		document.getElementById('tl-mid').textContent = `+${Math.round(lv.t_pop/2)}h`;
-		document.getElementById('tl-end').textContent = `+${Math.round(lv.t_pop)}h`;
+			`${pad(tNow.getDate())}/${pad(tNow.getMonth()+1)} ${pad(tNow.getHours())}:${pad(tNow.getMinutes())}`;
+		document.getElementById('tl-mid').textContent = `+${Math.round(_remaining/2)}h`;
+		document.getElementById('tl-end').textContent = `+${Math.round(_remaining)}h`;
+	} else {
+		document.getElementById('tl-mid').textContent = `+${Math.round(_remaining/2)}h`;
+		document.getElementById('tl-end').textContent = `+${Math.round(_remaining)}h`;
 	}
 }
 
@@ -2314,8 +2565,12 @@ function jumpToTask(idx) {
 // ── INTERPOLATED WEATHER ──
 function getLiveWx(t) {
 	if (!state.wx.length) return null;
+	// Strict bounds — null outside actual forecast window, no extrapolation
+	const wxStart = state.wx[0].start;
+	const wxEnd   = state.wx[state.wx.length-1].end;
+	if (t < wxStart || t >= wxEnd) return null;
 	const idx = state.wx.findIndex(w => t >= w.start && t < w.end);
-	if (idx === -1) return state.wx[state.wx.length-1];
+	if (idx === -1) return null;
 	const w1 = state.wx[idx];
 	const w2 = state.wx[idx+1];
 	if (!w2) return w1;
@@ -2391,9 +2646,26 @@ function updateLiveView() {
 	if (!state.ops.length || !state.wx.length) return;
 
 	const wx = getLiveWx(lv.t);
-	if (!wx) return;
+	if (!wx) {
+		// Beyond forecast window — clear compass and alert, don't freeze on stale data
+		const heatmapEl = document.getElementById('live-heatmap');
+		if (heatmapEl) heatmapEl.style.background = 'conic-gradient(from 0deg, rgba(74,96,128,0.3) 0deg, rgba(74,96,128,0.3) 360deg)';
+		const alertEl = document.getElementById('live-alert');
+		const msgEl   = document.getElementById('live-alert-msg');
+		if (alertEl) alertEl.className = 'live-alert safe';
+		if (msgEl)   msgEl.textContent = 'BEYOND FORECAST WINDOW';
+		// Still update T+ and task block
+		const h = Math.floor(lv.t), m = Math.round((lv.t % 1) * 60);
+		document.getElementById('live-tplus').textContent =
+			`T+ ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+		return;
+	}
 
-	const pct = lv.t / lv.t_pop;
+	// Playhead maps to remaining window (after last completed task)
+	const _lvLastDone  = [...state.ops].reverse().find(o => o.completed);
+	const _lvWinStart  = _lvLastDone ? _lvLastDone.end : 0;
+	const _lvWinSpan   = Math.max(1, lv.t_pop - _lvWinStart);
+	const pct = Math.max(0, Math.min(1, (lv.t - _lvWinStart) / _lvWinSpan));
 
 	// T+ display
 	const h = Math.floor(lv.t), m = Math.round((lv.t % 1) * 60);
@@ -2587,13 +2859,14 @@ function toggleSim() {
 		btn.textContent = '▶ PLAY';
 	} else {
 		const maxT = lv.t_pop;
-		if (lv.t >= maxT) lv.t = 0;
+		const _simWinStart = (() => { const d = [...state.ops].reverse().find(o => o.completed); return d ? d.end : 0; })();
+		if (lv.t >= maxT) lv.t = _simWinStart;
 		btn.className = 'sim-btn pause';
 		btn.textContent = '⏸ PAUSE';
 		lv.simTimer = setInterval(() => {
 			lv.t += 0.04 * lv.simSpeed;
 			if (lv.t > maxT) {
-				if (lv.simLoop) { lv.t = 0; }
+				if (lv.simLoop) { lv.t = _simWinStart; }
 				else { lv.t = maxT; toggleSim(); return; }
 			}
 			updateLiveView();
@@ -2622,7 +2895,12 @@ function bindScrubber(trackId) {
 
 	const doScrub = (clientX) => {
 		const r = track.getBoundingClientRect();
-		lv.t = Math.max(0, Math.min(lv.t_pop, ((clientX - r.left) / r.width) * lv.t_pop));
+		const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+		// Map to remaining window (after last completed task)
+		const lastDone   = [...state.ops].reverse().find(o => o.completed);
+		const winStart   = lastDone ? lastDone.end : 0;
+		lv.t = winStart + pct * (lv.t_pop - winStart);
+		lv.t = Math.max(winStart, Math.min(lv.t_pop, lv.t));
 		updateLiveView();
 	};
 
