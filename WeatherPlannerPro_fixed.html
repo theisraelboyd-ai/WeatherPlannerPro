@@ -1,0 +1,3685 @@
+	<!DOCTYPE html>
+	<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+		<link rel="manifest" href="manifest.json">
+		<title>Weather Planner Pro</title>
+		<style>
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 1 — DESIGN TOKENS                    ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		:root {
+			/* Surface palette */
+			--bg:        #05070a;
+			--deep:      #000000;
+			--panel:     #0f172a;
+			--card:      #1e293b;
+			--overlay:   #0b1120;
+			--input-bg:  #020617;
+
+			/* Semantic colours */
+			--accent:  #38bdf8;
+			--border:  #334155;
+			--text:    #f8fafc;
+			--muted:   #94a3b8;
+			--muted2:  #64748b;
+			--muted3:  #cbd5e1;
+			--safe:    #10b981;
+			--warn:    #fbbf24;
+			--danger:  #ef4444;
+			--tide:    #2dd4bf;
+
+			/* Environment colours */
+			--c-wind:  #ef4444;
+			--c-sea:   #0ea5e9;
+			--c-swell: #6366f1;
+			--c-curr:  #d946ef;
+
+			/* Typography scale */
+			--fs-xs:   0.65rem;
+			--fs-sm:   0.72rem;
+			--fs-base: 0.82rem;
+			--fs-md:   0.9rem;
+			--fs-lg:   1rem;
+
+			/* Spacing */
+			--gap-xs: 4px;
+			--gap-sm: 6px;
+			--gap-md: 8px;
+			--gap-lg: 12px;
+			--r-sm: 3px;
+			--r-md: 4px;
+			--r-lg: 6px;
+		}
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 2 — RESET & BASE                     ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		* { user-select: none; box-sizing: border-box; outline: none; }
+		input:focus-visible, select:focus-visible,
+		button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+		#alert-modal-content, #alert-modal-content *,
+		#readme-modal *, #data-format-modal *,
+		.hud-overlay * { user-select: text; }
+
+		body {
+			font-family: 'Inter', system-ui, sans-serif;
+			background: var(--bg); color: var(--text);
+			margin: 0; height: 100vh; display: grid; overflow: hidden;
+			grid-template-areas: "status status status" "nav center weather" "timeline timeline timeline";
+			grid-template-columns: 280px 1fr 300px;
+			grid-template-rows: 50px minmax(0, 1fr) auto;
+		}
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 3 — HEADER                           ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		header {
+			grid-area: status;
+			border-bottom: 1px solid var(--border);
+			display: grid;
+			grid-template-columns: 1fr auto 1fr;
+			align-items: center;
+			padding: 0 10px; font-weight: 900;
+			background: var(--deep);
+			letter-spacing: 1px; font-size: var(--fs-sm);
+		}
+		.top-btn {
+			font-size: var(--fs-xs); color: var(--accent); cursor: pointer;
+			padding: 3px 8px; border: 1px solid var(--accent);
+			border-radius: var(--r-md); transition: 0.2s;
+			text-transform: uppercase; background: transparent;
+			font-family: inherit; font-weight: 900; letter-spacing: 1px;
+			text-decoration: none; display: inline-flex; align-items: center;
+		}
+		.top-btn:hover { background: rgba(56,189,248,0.15); }
+		.field-btn {
+			border-color: #818cf8; color: #818cf8;
+			background: rgba(129,140,248,0.06);
+		}
+		.field-btn:hover { background: rgba(129,140,248,0.18); border-color: #a5b4fc; color: #a5b4fc; }
+
+		/* Fast tooltip */
+		.fast-tooltip {
+			display: none; position: absolute; pointer-events: none; z-index: 9999;
+			background: rgba(2,6,23,0.95); border: 1px solid var(--accent);
+			color: var(--text); padding: 6px 10px; border-radius: var(--r-lg);
+			font-size: var(--fs-sm); font-weight: 900;
+			box-shadow: 0 4px 10px rgba(0,0,0,0.5); white-space: nowrap;
+		}
+
+		/* Name input modal */
+		.name-modal {
+			display: none; position: fixed; inset: 0;
+			background: rgba(0,0,0,0.85); z-index: 9999;
+			justify-content: center; align-items: center;
+		}
+		.name-modal-inner {
+			background: var(--panel); border: 1px solid var(--accent);
+			border-radius: var(--r-lg); padding: 24px;
+			width: 380px; max-width: 90vw;
+			display: flex; flex-direction: column; gap: 14px;
+			box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+		}
+		.name-modal-label { color: var(--text); font-weight: 900; font-size: var(--fs-base); text-transform: uppercase; letter-spacing: 1px; }
+		.name-modal-row { display: flex; gap: 10px; }
+
+		/* Tide tooltip */
+		.tide-tooltip {
+			position: absolute; display: none;
+			background: rgba(15,23,42,0.95); border: 1px solid var(--tide);
+			color: var(--tide); padding: 2px 6px; border-radius: var(--r-md);
+			font-size: var(--fs-xs); font-weight: 900; z-index: 999;
+			pointer-events: none; white-space: nowrap;
+			box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+		}
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 4 — SIDEBARS                         ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		nav, aside { background: var(--panel); border: 1px solid var(--border); position: relative; display: flex; flex-direction: column; overflow: hidden; }
+		.scroll-container { padding: var(--gap-md); overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: var(--gap-xs); }
+		.edit-overlay { position: absolute; inset: 0; background: var(--overlay); z-index: 50; padding: var(--gap-md); display: none; flex-direction: column; gap: var(--gap-sm); overflow-y: auto; }
+		.edit-overlay.active { display: flex; animation: slideIn 0.2s ease-out; }
+		@keyframes slideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+		.ui-card { background: var(--card); border-radius: var(--r-md); padding: var(--gap-md); border-top: 2px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.5); position: relative; }
+		.ui-card.c-op    { border-top-color: var(--accent); }
+		.ui-card.c-wind  { border-top-color: var(--c-wind); }
+		.ui-card.c-sea   { border-top-color: var(--c-sea); }
+		.ui-card.c-swell { border-top-color: var(--c-swell); }
+		.ui-card.c-curr  { border-top-color: var(--c-curr); }
+
+		.card-title { font-size: var(--fs-xs); font-weight: 900; text-transform: uppercase; margin-bottom: var(--gap-xs); color: var(--muted3); letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between; }
+		.rel-box { font-family: monospace; font-size: var(--fs-xs); font-weight: 900; color: var(--safe); background: var(--deep); padding: 2px 4px; border-radius: 2px; border: 1px solid var(--border); }
+
+		.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap-xs); }
+		.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--gap-xs); }
+
+		label { display: block; font-size: var(--fs-xs); color: var(--muted); font-weight: 800; text-transform: uppercase; margin-bottom: 2px; }
+		input, select { width: 100%; background: var(--input-bg); border: 1px solid var(--border); color: var(--text); padding: 4px 6px; font-weight: 900; border-radius: var(--r-sm); font-size: var(--fs-base); transition: 0.2s; }
+		input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56,189,248,0.3); }
+		select { font-size: var(--fs-sm); padding: 3px 4px; }
+
+		.checkbox-row { display: flex; align-items: center; gap: var(--gap-sm); background: var(--input-bg); padding: var(--gap-xs); border-radius: var(--r-sm); border: 1px solid var(--border); cursor: pointer; }
+		.checkbox-row input { width: 12px; height: 12px; cursor: pointer; margin: 0; }
+		.checkbox-row span { color: var(--text); font-size: var(--fs-xs); font-weight: 900; text-transform: uppercase; }
+
+		.sys-btn { width: 100%; padding: var(--gap-sm); border-radius: var(--r-sm); font-weight: 900; font-size: var(--fs-xs); cursor: pointer; border: none; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; font-family: inherit; }
+		.sys-btn:hover { filter: brightness(1.2); }
+		.btn-op     { background: var(--accent); color: var(--deep); }
+		.btn-wx     { background: #e2e8f0; color: var(--deep); }
+		.btn-close  { background: var(--border); color: var(--text); margin-top: auto; }
+		.btn-danger { background: var(--danger); color: var(--text); }
+
+		.sim-btn { display: flex; align-items: center; justify-content: center; font-size: var(--fs-xs); color: var(--muted); cursor: pointer; padding: 3px 8px; border: 1px solid var(--border); border-radius: var(--r-md); transition: 0.2s; background: transparent; font-family: inherit; font-weight: 900; letter-spacing: 0.5px; text-transform: uppercase; }
+		.sim-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 5 — COMPASS CENTRE                   ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		main { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, var(--panel) 0%, var(--input-bg) 100%); position: relative; }
+		.compass-container { width: 340px; height: 340px; position: relative; display: flex; align-items: center; justify-content: center; }
+		.mode-badge { position: absolute; top: 10px; font-weight: 900; padding: 4px 10px; border-radius: 10px; font-size: var(--fs-xs); letter-spacing: 1px; z-index: 20; }
+		.env-arrow { cursor: grab; }
+		.env-arrow:active { cursor: grabbing; }
+		.arrow-hitbox { fill: transparent; stroke: transparent; stroke-width: 40px; }
+
+		.heatmap-ring { position: absolute; width: 290px; height: 290px; border-radius: 50%; background: transparent; -webkit-mask: radial-gradient(transparent 58%, black 65%); mask: radial-gradient(transparent 58%, black 65%); pointer-events: none; z-index: 0; opacity: 0.85; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.6)); }
+
+		.hud-overlay { position: absolute; background: rgba(15,23,42,0.8); border: 1px solid var(--border); border-radius: var(--r-md); padding: var(--gap-md); backdrop-filter: blur(4px); z-index: 10; max-height: calc(100% - 20px); overflow-y: auto; }
+		.hud-left  { left: 10px; top: 10px; width: 160px; }
+		.hud-right { right: 10px; top: 10px; width: 120px; display: flex; flex-direction: column; align-items: center; }
+		.hud-alerts { position: absolute; bottom: 10px; right: 10px; width: 180px; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--gap-xs); z-index: 60; pointer-events: none; }
+
+		.alert-box { width: 100%; text-align: center; padding: 6px 8px; border-radius: var(--r-md); font-weight: 900; font-size: var(--fs-xs); text-transform: uppercase; border: 1px solid transparent; backdrop-filter: blur(4px); box-shadow: 0 4px 8px rgba(0,0,0,0.5); pointer-events: auto; cursor: pointer; transition: 0.2s; }
+		.alert-box:hover { filter: brightness(1.2); transform: scale(1.02); }
+		.alert-safe   { background: rgba(16,185,129,0.2);  color: var(--safe);   border-color: var(--safe); }
+		.alert-danger { background: rgba(239,68,68,0.85);  color: var(--text);   border-color: #fca5a5; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+		.alert-warn   { background: rgba(251,191,36,0.2);  color: var(--warn);   border-color: var(--warn); }
+
+		/* Modal overlays */
+		.modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; justify-content: center; align-items: center; background: rgba(0,0,0,0.85); }
+		.modal-overlay.open { display: flex; }
+		.modal-panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg); display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-height: 85vh; width: 950px; max-width: 95vw; }
+		.modal-panel.sm { width: 380px; }
+		.modal-panel.md { width: 820px; }
+		.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--border); background: var(--overlay); border-radius: var(--r-lg) var(--r-lg) 0 0; flex-shrink: 0; }
+		.modal-title { color: var(--text); font-weight: 900; font-size: var(--fs-lg); display: flex; align-items: center; gap: var(--gap-md); }
+		.modal-body { padding: 20px; overflow-y: auto; flex-grow: 1; }
+		.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+		.paste-area { width: 100%; height: 300px; background: var(--input-bg); color: var(--safe); font-family: 'JetBrains Mono', monospace; border: 1px solid var(--border); padding: 12px; font-size: var(--fs-sm); white-space: pre; resize: none; border-radius: var(--r-md); }
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 6 — TIMELINE FOOTER                  ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		footer { grid-area: timeline; background: var(--deep); border-top: 1px solid var(--border); padding: 6px 10px; display: flex; flex-direction: column; gap: var(--gap-xs); }
+		.t-track { position: relative; height: 30px; background: var(--input-bg); border: 1px solid var(--border); border-radius: var(--r-sm); display: flex; cursor: crosshair; overflow: hidden; }
+		.wx-track { height: 65px; border-color: var(--muted3); transition: border-color 0.4s; }
+		.wx-track.stale-warn   { border-color: var(--warn)   !important; box-shadow: 0 0 0 1px rgba(255,184,0,0.3); }
+		.wx-track.stale-danger { border-color: var(--danger) !important; box-shadow: 0 0 0 1px rgba(255,59,59,0.4); }
+		.block { height: 100%; border-right: 1px solid var(--deep); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.2s; cursor: pointer; overflow: hidden; }
+		.op-block { background: rgba(245,158,11,0.15); color: #fcd34d; }
+		.op-block:hover { filter: brightness(1.5); }
+		.op-block.active { border: 2px solid #f59e0b; background: rgba(245,158,11,0.3); color: var(--text); }
+		.op-block.completed { background: rgba(30,41,59,0.4) !important; color: #334155 !important; border-left: 3px solid #1e293b !important; text-decoration: line-through; filter: none !important; cursor: default; }
+		.wx-block { background: rgba(15,23,42,0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(56,189,248,0.3); box-shadow: inset 0 1px 1px rgba(255,255,255,0.05); justify-content: center; padding: 0 4px; font-family: 'JetBrains Mono', monospace; font-size: var(--fs-xs); color: var(--accent); }
+		.wx-block:hover  { background: rgba(56,189,248,0.25); }
+		.wx-block.active { border: 2px solid var(--accent); }
+		.wx-data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 6px; width: 100%; white-space: nowrap; }
+		.ph { position: absolute; top: 0; width: 2px; height: 100%; background: var(--text); z-index: 100; box-shadow: 0 0 6px var(--text); pointer-events: none; }
+
+		/* Reset buttons */
+		.reset-btn { background: transparent; border-radius: var(--r-md); padding: 4px 12px; font-size: var(--fs-sm); font-weight: bold; letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease; font-family: inherit; }
+		.reset-btn-ops  { color: var(--danger); border: 1px solid var(--danger); }
+		.reset-btn-ops:hover  { background: var(--danger); color: var(--text); }
+		.reset-btn-wx   { color: var(--warn);   border: 1px solid var(--warn); }
+		.reset-btn-wx:hover   { background: var(--warn); color: #111; }
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 7 — PRINT                            ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		#print-view { display: none; }
+		@media print {
+			* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+			body { background: white; color: black; height: auto; display: block; overflow: visible; }
+			header, nav, aside, main, footer, .edit-overlay { display: none !important; }
+			#print-view { display: block !important; padding: 20px; background: white; }
+			/* Radar/compass print overrides */
+			.print-compass-wrap { background: white !important; }
+			.print-compass-wrap svg { background: white !important; }
+			.print-compass-wrap circle[fill="none"] { stroke: #999 !important; }
+			.print-heatmap { filter: none !important; opacity: 0.7 !important; }
+			table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 24px; font-size: 0.8rem; page-break-inside: auto; }
+			tr { page-break-inside: avoid; page-break-after: auto; }
+			th, td { border: 1px solid #334155; padding: 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+			th { background-color: #f1f5f9; color: #0f172a; font-weight: 900; text-transform: uppercase; }
+			h1 { font-size: 1.5rem; margin-bottom: 5px; color: #000; border-bottom: 2px solid #000; padding-bottom: 5px; }
+			h2 { font-size: 1rem; color: #000; margin-top: 20px; font-weight: 900; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+			.bg-danger { background-color: #fee2e2 !important; color: #991b1b !important; }
+			.bg-danger strong { color: #7f1d1d !important; }
+		}
+
+		/* ═══════════════════════════════════════════════════════════ */
+		/* ═══  CSS SECTION 8 — MOBILE LANDSCAPE                 ═══ */
+		/* ═══════════════════════════════════════════════════════════ */
+		#rotate-overlay { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 99999; flex-direction: column; align-items: center; justify-content: center; gap: 20px; text-align: center; padding: 30px; }
+		#rotate-overlay .rotate-icon { font-size: 3.5rem; animation: rotateHint 1.8s ease-in-out infinite; }
+		@keyframes rotateHint { 0% { transform:rotate(0deg); opacity:1; } 40% { transform:rotate(-90deg); opacity:0.6; } 60% { transform:rotate(-90deg); opacity:1; } 100% { transform:rotate(0deg); opacity:1; } }
+		#rotate-overlay p { color: var(--muted); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+		#rotate-overlay strong { color: var(--accent); font-size: 1.1rem; display: block; margin-bottom: 6px; }
+		@media screen and (max-width: 900px) and (orientation: portrait) { #rotate-overlay { display: flex; } }
+		@media screen and (max-height: 520px) and (orientation: landscape) {
+			body { grid-template-columns: 220px 1fr 220px; grid-template-rows: 42px minmax(0, 1fr) auto; }
+			header { font-size: var(--fs-xs); padding: 0 6px; }
+			.top-btn { font-size: 0.55rem; padding: 2px 5px; }
+			.scroll-container { padding: 4px; gap: 2px; }
+			.ui-card { padding: 5px; }
+			.card-title { font-size: 0.58rem; margin-bottom: 2px; }
+			label { font-size: 0.5rem; margin-bottom: 1px; }
+			input, select { padding: 3px 4px; font-size: 0.68rem; }
+			.sys-btn { padding: 4px; font-size: 0.58rem; }
+			.grid-2, .grid-3 { gap: 2px; }
+			.rel-box { font-size: 0.58rem; padding: 1px 3px; }
+			.compass-container { width: 260px !important; height: 260px !important; }
+			.hud-left { width: 130px; font-size: var(--fs-xs); }
+			.hud-right { width: 100px; }
+			.hud-alerts { width: 150px; }
+			.alert-box { font-size: 0.55rem; padding: 4px 6px; }
+			footer { padding: 3px 6px; gap: 2px; }
+			.t-track { height: 22px; }
+			.wx-track { height: 46px; }
+			#mission-start { font-size: 0.7rem; padding: 1px 4px; transition: border-color 0.2s, color 0.2s; }
+			#mission-start.stale {
+				border-color: var(--danger) !important;
+				color: var(--danger) !important;
+				box-shadow: 0 0 0 2px rgba(239,68,68,0.3), 0 0 12px rgba(239,68,68,0.2);
+			}
+			.mission-stale-wrap { border-left: 2px solid transparent; padding-left: 13px; transition: border-color 0.2s; }
+			.mission-stale-wrap.stale { border-left-color: var(--danger); }
+			.mission-stale-wrap.stale label { color: var(--danger) !important; }
+			.hud-overlay { padding: 5px; font-size: var(--fs-xs); }
+			#op-list { font-size: var(--fs-xs); gap: 3px; }
+			#tgt-readout { font-size: 1.1rem; }
+			#hdg-readout { font-size: 1.5rem; }
+			#dp-force-readout { font-size: 0.7rem; margin-top: 6px; }
+		}
+		</style>
+	</head>
+	<body>
+		<div id="print-view"></div>
+
+		<!-- Portrait blocking overlay -->
+		<div id="rotate-overlay">
+			<div class="rotate-icon">📱</div>
+			<div>
+				<strong>Rotate Your Device</strong>
+				<p>Weather Planner Pro is designed for landscape</p>
+			</div>
+			<div style="display:flex; flex-direction:column; align-items:center; gap:10px; margin-top:8px;">
+				<a href="WxPlanner_Field.html"
+					onclick="sessionStorage.setItem('wxplanner_manual','1')"
+					style="font-family:'Inter',system-ui,sans-serif; font-size:0.82rem; font-weight:900;
+						letter-spacing:1px; text-transform:uppercase; text-decoration:none;
+						color:#38bdf8; border:1px solid rgba(56,189,248,0.5);
+						background:rgba(56,189,248,0.08); border-radius:6px;
+						padding:10px 20px; transition:0.2s; display:block; text-align:center;">
+					📱 Open Field View instead
+				</a>
+				<span style="font-family:'Inter',system-ui,sans-serif; font-size:0.62rem;
+					color:#4a6080; letter-spacing:1px; text-transform:uppercase;">
+					or rotate device to continue
+				</span>
+			</div>
+		</div>
+
+		<!-- Reusable text-input modal -->
+		<div id="name-input-modal" class="name-modal">
+			<div class="name-modal-inner">
+				<div id="name-input-label" class="name-modal-label"></div>
+				<input id="name-input-field" type="text" class="name-modal-input">
+				<div class="name-modal-row">
+					<button id="name-input-ok"     class="sys-btn btn-op"    style="flex:2;">OK</button>
+					<button id="name-input-cancel" class="sys-btn btn-close" style="flex:1;">CANCEL</button>
+				</div>
+			</div>
+		</div>
+		<header>
+		<div style="display:flex; gap:8px; align-items:center; justify-self:start;">
+			<input type="file" id="file-input" accept=".csv,.txt,.json,.js" style="display:none" onchange="handleFileUpload(event)">
+			<button class="top-btn" onclick="document.getElementById('file-input').click()">📁 LOAD FILES</button>
+			<button class="top-btn" style="border-color:var(--warn); color:var(--warn);" onclick="exportPlan()">💾 SAVE PLAN</button>
+			<button class="top-btn" onclick="$('paste-analysis-modal').style.display='flex'">📋 PASTE DATA</button>
+		</div>
+
+		<div id="fast-tt" class="fast-tooltip"></div>
+
+		<div style="text-align:center; font-size:1.2rem; font-weight:900; color:var(--muted3); line-height:1; white-space:nowrap;">OPERATION PLANNER</div>
+
+		<div style="display:flex; gap:15px; align-items:center; justify-self:end;">
+			<div style="display:flex; gap:8px; align-items:center;">
+				<button class="top-btn" onclick="printPlan()">🖨️ PRINT PLAN</button>
+				<button class="top-btn" style="border-color:var(--safe); color:var(--safe);" onclick="document.getElementById('readme-modal').style.display='flex'">📖 READ ME</button>
+				<button class="top-btn" onclick="document.getElementById('data-format-modal').style.display='flex'">📊 FORMATS</button>
+				<a href="WxPlanner_Field.html" onclick="sessionStorage.setItem('wxplanner_manual','1')" class="top-btn field-btn" style="font-size:0.58rem; padding:2px 5px; letter-spacing:0.5px;">📱</a>
+			</div>
+			<div style="border-left:1px solid var(--border); padding-left:13px; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; transition:border-color 0.2s;" id="mission-start-wrap">
+				<label for="mission-start" style="cursor:pointer; margin-bottom:2px; line-height:1; letter-spacing:1px; display:flex; align-items:center; gap:5px; transition:color 0.2s;">MISSION START TIME<span id="mission-change-badge" style="display:none; background:var(--danger); color:#fff; font-size:0.62rem; font-weight:900; border-radius:4px; padding:2px 7px; letter-spacing:1px;">⚠ RE-RUN</span></label>
+				<input type="datetime-local" id="mission-start" value="2026-04-03T08:00" onchange="updateClock()" oninput="updateClock()"
+					style="background:var(--input-bg); border:1px solid var(--accent); border-radius:var(--r-md); color:var(--text); font-size:0.8rem; font-weight:900; padding:2px 6px; width:auto; text-align:center; font-variant-numeric:tabular-nums; cursor:text; margin:0; line-height:1; color-scheme:dark;">
+			</div>
+		</div>
+	</header>
+
+	<div id="stale-analysis-banner" style="display:none; background:rgba(239,68,68,0.12); border-bottom:2px solid var(--danger); padding:5px 16px; grid-area:status; margin-top:50px; position:fixed; top:50px; left:0; right:0; z-index:500; display:none; align-items:center; justify-content:space-between; gap:12px;">
+		<div style="display:flex; align-items:center; gap:10px;">
+			<span style="background:var(--danger); color:#fff; font-size:0.7rem; font-weight:900; border-radius:4px; padding:2px 8px; letter-spacing:1px; flex-shrink:0;">⚠ ANALYSIS STALE</span>
+			<span style="font-size:0.72rem; font-weight:700; color:var(--danger); letter-spacing:0.5px;">Mission start time changed — results no longer reflect current window. Re-run analysis or reload weather.</span>
+		</div>
+		<button onclick="dismissMissionChangePill()" style="background:transparent; border:1px solid var(--danger); color:var(--danger); border-radius:4px; padding:2px 10px; font-size:0.65rem; font-weight:700; cursor:pointer; letter-spacing:1px; white-space:nowrap; flex-shrink:0;">DISMISS ✕</button>
+	</div>
+
+	<div id="paste-analysis-modal" class="name-modal" style="z-index:200;">
+		<div class="modal-panel md">
+			<div class="modal-header">
+				<div class="modal-title">📋 EXCEL DATA INJECTION ENGINE</div>
+				<button class="sys-btn btn-close" style="width:auto; padding:6px 14px; margin:0;" onclick="$('paste-analysis-modal').style.display='none'">CLOSE</button>
+			</div>
+			<div class="modal-body">
+				<div style="background:rgba(56,189,248,0.08); border-left:3px solid var(--accent); padding:8px 12px; margin-bottom:12px; font-size:var(--fs-xs); color:var(--muted3); border-radius:0 var(--r-md) var(--r-md) 0;">
+					<strong>INSTRUCTIONS:</strong> Copy the data block from Excel (Rows 8+) and paste below. The engine detects Analysis ID, Limit Class, and maps all 12 headings automatically.
+				</div>
+				<textarea id="paste-area" class="paste-area" placeholder="Analysis_ID	Limit_Class	Param_Value	H_000	...&#10;MAIN_LAY	WAVE_HS_BY_TP	4	2.3	..."></textarea>
+				<div class="modal-actions">
+					<button class="sys-btn btn-op" style="flex:2; height:40px; font-size:var(--fs-sm);" onclick="processPastedData()">🚀 PROCESS & INJECT TO LIBRARY</button>
+					<button class="sys-btn btn-close" style="flex:1;" onclick="$('paste-analysis-modal').style.display='none'">CANCEL</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	   <nav>
+		<div class="scroll-container" style="padding: 8px; gap: 4px;">
+			
+			<div class="ui-card c-op" style="background: rgba(0,0,0,0.4); padding: 8px;">
+				<div class="card-title" style="margin-bottom: 4px;">Operational Setup</div>
+				
+				<label>Task Name</label>
+				<input type="text" id="op-name" placeholder="e.g. Skid 1 Deployment" style="margin-bottom:4px;">
+
+				<label>Primary Analysis Data</label>
+				<select id="op-sel" style="margin-bottom:4px;"></select>
+
+				<label>Secondary Analysis Data</label>
+				<select id="op-sel-2" style="margin-bottom:4px;"><option value="NONE">-- None --</option></select>
+				
+				<div><label>Duration (Hrs)</label><input type="number" id="op-dur" value="4" step="0.5" class="ent-jump" data-next="btn-add-op" style="margin-bottom:6px;"></div>
+				
+				<label>Heading Constraint</label>
+				<select id="op-hdg-mode" style="margin-bottom:4px;" onchange="sync()">
+					<option value="90">±90°</option>
+					<option value="45">±45°</option>
+					<option value="30">±30°</option>
+					<option value="15">±15°</option>
+					<option value="0">±0°</option>
+				</select>
+				
+				<div id="op-hdg-locked-wrap" style="margin-bottom:6px;">
+					<label style="color:var(--safe)">Target Heading (°T)</label>
+					<input type="number" id="op-fixed-hdg" value="0">
+				</div>
+
+				<div class="ui-card" style="border-top-color:var(--warn); margin-bottom:4px;">
+					<div class="card-title" style="color:var(--warn); cursor:pointer;" onclick="toggleGlAccordion()">
+						Global Wx Limits
+						<span id="gl-accord-arrow" style="transition:0.2s;">▸</span>
+					</div>
+					<div id="gl-accord-body" style="display:none; flex-direction:column; gap:4px; margin-top:4px;">
+						<label class="checkbox-row" style="border-color:var(--border);">
+							<input type="checkbox" id="gl-wind-chk" onchange="toggleGlobalLimit()">
+							<span style="flex:1;">💨 Wind</span>
+							<input type="number" id="gl-wind-val" value="35" step="1" style="width:52px;" placeholder="kts">
+							<span style="font-size:var(--fs-xs); color:var(--muted);">kts</span>
+						</label>
+						<label class="checkbox-row" style="border-color:var(--border);">
+							<input type="checkbox" id="gl-wave-chk" onchange="toggleGlobalLimit()">
+							<span style="flex:1;">🌊 Waves (Hs)</span>
+							<input type="number" id="gl-wave-val" value="2.5" step="0.1" style="width:52px;" placeholder="m">
+							<span style="font-size:var(--fs-xs); color:var(--muted);">m</span>
+						</label>
+						<label class="checkbox-row" style="border-color:var(--border);">
+							<input type="checkbox" id="gl-curr-chk" onchange="toggleGlobalLimit()">
+							<span style="flex:1;">🌀 Current</span>
+							<input type="number" id="gl-curr-val" value="2.0" step="0.1" style="width:52px;" placeholder="kts">
+							<span style="font-size:var(--fs-xs); color:var(--muted);">kts</span>
+						</label>
+						<label class="checkbox-row" style="border-color:var(--border);">
+							<input type="checkbox" id="gl-temp-chk" onchange="toggleGlobalLimit()">
+							<span style="flex:1;">🌡 Temp Min</span>
+							<input type="number" id="gl-temp-val" value="0" step="1" style="width:52px;" placeholder="°C">
+							<span style="font-size:var(--fs-xs); color:var(--muted);">°C</span>
+						</label>
+						<div id="gl-active-note" style="display:none; font-size:var(--fs-xs); color:var(--warn); padding:2px 0 0;">▲ Active — applied to all tasks in simulation</div>
+					</div>
+				</div>
+
+
+
+				<label class="checkbox-row" style="margin-bottom:4px; border-color:var(--danger);">
+					<input type="checkbox" id="op-has-limit" onchange="$('op-lim-wrap').style.display = this.checked ? 'block' : 'none'">
+					<span style="color:var(--danger)">Vessel Weather Limit</span>
+				</label>
+				<div id="op-lim-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--danger);">
+					<select id="op-lim-type" style="margin-bottom:4px;"><option value="WIND">Max Wind (Kts)</option><option value="CURR">Max Current (Kts)</option></select>
+					<div class="grid-2">
+						<div><label>Weather From (°T)</label><input type="number" id="op-lim-dir" value="0"></div>
+						<div><label>±Tolerance</label>
+							<select id="op-lim-tol">
+								<option value="90">±90°</option><option value="75">±75°</option><option value="60">±60°</option>
+								<option value="45">±45°</option><option value="30">±30°</option><option value="15">±15°</option>
+							</select>
+						</div>
+					</div>
+					<div style="margin-top:4px; font-size:var(--fs-xs); color:var(--muted); margin-bottom:4px;">Direction weather is <em>coming from</em> that triggers this limit</div>
+					<div><label>Intensity Limit</label><input type="number" id="op-lim-val" value="20"></div>
+				</div>
+
+				<button type="button" class="sys-btn btn-op" id="btn-add-op" onclick="addPhase()">Add Task to Timeline</button>
+			</div>
+		</div>
+
+		<div id="op-edit-panel" class="edit-overlay" style="border-right: 2px solid var(--accent);">
+			<div class="card-title" style="font-size:0.8rem; color:var(--accent); margin-bottom:2px;">Edit Operation</div>
+			
+			<div><label>Task Name</label><input type="text" id="ed-op-name" style="margin-bottom:4px;"></div>
+			
+			<label>Primary Analysis Data</label>
+			<select id="ed-op-sel" style="margin-bottom:4px;"></select>
+			
+			<label>Secondary Analysis Data</label>
+			<select id="ed-op-sel-2" style="margin-bottom:4px;"><option value="NONE">-- None --</option></select>
+			
+			<div><label>Duration (Hrs)</label><input type="number" id="ed-op-dur" step="0.5" style="margin-bottom:4px;"></div>
+			
+			<label>Heading Constraint</label>
+			<select id="ed-op-hdg-mode" style="margin-bottom:4px;" onchange="sync()">
+				<option value="90">±90°</option>
+				<option value="45">±45°</option>
+				<option value="30">±30°</option>
+				<option value="15">±15°</option>
+				<option value="0">±0°</option>
+			</select>
+			
+			<div id="ed-op-hdg-locked-wrap" style="margin-bottom:6px;">
+				<label style="color:var(--safe)">Target Heading (°T)</label>
+				<input type="number" id="ed-op-hdg">
+			</div>
+
+			
+
+			<label class="checkbox-row" style="margin-bottom:4px; border-color:var(--danger);">
+				<input type="checkbox" id="ed-op-has-limit" onchange="$('ed-op-lim-wrap').style.display = this.checked ? 'block' : 'none'">
+				<span style="color:var(--danger)">Vessel Weather Limit</span>
+			</label>
+			<div id="ed-op-lim-wrap" style="display:none; background:#000; padding:6px; border-radius:4px; margin-bottom:6px; border:1px dashed var(--danger);">
+				<select id="ed-op-lim-type" style="margin-bottom:4px;"><option value="WIND">Max Wind (Kts)</option><option value="CURR">Max Current (Kts)</option></select>
+				<div class="grid-2">
+					<div><label>Weather From (°T)</label><input type="number" id="ed-op-lim-dir"></div>
+					<div><label>±Tolerance</label>
+						<select id="ed-op-lim-tol">
+							<option value="90">±90°</option><option value="75">±75°</option><option value="60">±60°</option>
+							<option value="45">±45°</option><option value="30">±30°</option><option value="15">±15°</option>
+						</select>
+					</div>
+				</div>
+				<div style="font-size:var(--fs-xs); color:var(--muted); margin:3px 0 4px;">Direction weather is <em>coming from</em></div>
+				<div><label>Intensity Limit</label><input type="number" id="ed-op-lim-val"></div>
+			</div>
+
+			<div style="display:flex; gap:4px; margin-top:auto; flex-direction:column;">
+				<div style="display:flex; gap:4px;">
+					<button type="button" class="sys-btn btn-op" style="flex:1;" onclick="saveOpEdit()">Save</button>
+					<button type="button" class="sys-btn" style="flex:1; background:var(--danger); color:#fff;" onclick="deleteOp()">Delete</button>
+				</div>
+				<button type="button" id="complete-op-btn" class="sys-btn" style="background:var(--border); color:var(--muted3);" onclick="toggleOpComplete()">✓ Mark Complete</button>
+			</div>
+			<button type="button" class="sys-btn btn-close" onclick="closeOverlays()">Cancel</button>
+		</div>
+	</nav>
+
+		<main>
+			<div id="readme-modal" class="name-modal" style="z-index:150; align-items:flex-start; padding-top:4vh;">
+			<div class="modal-panel md" style="max-height:92vh; border-color:var(--safe);">
+				<div class="modal-header" style="background:var(--overlay);">
+					<div class="modal-title" style="color:var(--safe);">⚓ OPS-PLANNER PRO: MASTER TECHNICAL MANUAL</div>
+					<button type="button" class="sys-btn btn-close" style="width:auto; padding:8px 16px; margin:0; border-color:var(--muted2); color:var(--muted2);" onclick="document.getElementById('readme-modal').style.display='none'">EXIT MANUAL</button>
+				</div>
+				<div class="modal-body" style="background:linear-gradient(180deg, var(--panel) 0%, var(--input-bg) 100%); color:var(--muted3); line-height:1.5;">
+				
+				<h2 style="color: #fff; border-bottom: 2px solid var(--safe); padding-bottom: 8px; margin-top: 0; font-size:1rem; letter-spacing:1px;">01. DATA ARCHITECTURE & PORTABILITY</h2>
+				<p style="font-size: 0.85rem; margin-bottom: 15px;">The Planner uses a <strong>Unified State Model</strong>. All sequence data, environmental inputs, and vessel limits are stored in a single volatile memory "brain."</p>
+				
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom: 25px;">
+					<div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); padding: 12px; border-radius: 4px;">
+						<strong style="color:var(--accent); font-size:0.75rem; display:block; margin-bottom:5px;">💾 SAVE PLAN (MASTER PACKAGE)</strong>
+						<span style="font-size:0.8rem;">Bundles Ops sequence, WX data, and Analysis Matrices into one <code>.txt</code> file.</span>
+					</div>
+					<div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.2); padding: 12px; border-radius: 4px;">
+						<strong style="color:#fbbf24; font-size:0.75rem; display:block; margin-bottom:5px;">📧 EMAIL BYPASS</strong>
+						<span style="font-size:0.8rem;">Exports as <code>.txt</code> to bypass corporate firewalls that block .json/.js files.</span>
+					</div>
+				</div>
+
+				<h2 style="color: #fff; border-bottom: 2px solid var(--warn); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">02. OPERATIONAL WORKFLOW</h2>
+				<div style="font-size: 0.85rem;">
+					<div style="margin-bottom:12px;"><strong>STEP 1:</strong> Load Vessel Limits (mission_data.js or Paste Limits)</div>
+					<div style="margin-bottom:12px;"><strong>STEP 2:</strong> Build the Sequence – add tasks, durations, and assign analysis limits</div>
+					<div style="margin-bottom:12px;"><strong>STEP 3:</strong> Upload StormGeo WX, Currents, and Tidal Data</div>
+					<div style="margin-bottom:12px;"><strong>STEP 4:</strong> Run Simulation – the engine cross-references everything in real time</div>
+				</div>
+
+				<h2 style="color: #fff; border-bottom: 2px solid #c084fc; padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">03. ANALYTICS & INTERPOLATION</h2>
+				<ul style="font-size: 0.85rem; list-style: none; padding: 0;">
+					<li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+						<strong style="color:#c084fc;">Linear Interpolation:</strong> Smooths 1hr/6hr weather data to per-minute resolution.
+					</li>
+					<li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+						<strong style="color:var(--safe);">Tidal Curve:</strong> 24-point cubic spline shown as teal ghost wave.
+					</li>
+					<li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+						<strong style="color:var(--accent);">Optimal Heading:</strong> Automatically solved for unrestricted tasks (maximizes strongest vessel axes).
+					</li>
+				</ul>
+
+				<h2 style="color: #fff; border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">04. 🖨️ CLIENT & MWS REPORTING</h2>
+				<p style="font-size: 0.85rem;">The <strong>PRINT PLAN</strong> button creates a clean, high-contrast report perfect for MWS submission, client review, or shift handover.</p>
+
+				<h2 style="color: #fff; border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">05. 🕹️ MANUAL OVERRIDES & STANDALONE MODE</h2>
+				<p style="font-size: 0.85rem;">Double-click any task or weather block on the timeline to manually edit. You can build a full plan without any CSV uploads for "What-If" analysis.</p>
+
+				<h2 style="color: #fff; border-bottom: 2px solid #fbbf24; padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">06. 📊 DATA FORMATS & INPUT STANDARDS</h2>
+				<ul style="font-size: 0.85rem; list-style: none; padding: 0;">
+					<li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+						<strong style="color:#c084fc;">StormGeo CSV:</strong> Must keep original column headers (Date/Time, Wind Speed, Hs, etc.).
+					</li>
+					<li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+						<strong style="color:var(--safe);">Tidal Data:</strong> DD/MM/YYYY header + 24 hourly values.
+					</li>
+					<li style="background:rgba(255,255,255,0.03); padding:10px; border-radius:4px; margin-bottom:8px;">
+						<strong style="color:var(--accent);">Analysis Matrices:</strong> WAVE_HS_BY_TP structure (JSON/JS format).
+					</li>
+				</ul>
+
+				<h2 style="color: #fff; border-bottom: 2px solid var(--danger); padding-bottom: 8px; margin-top: 30px; font-size:1rem; letter-spacing:1px;">07. DATA HYGIENE & TROUBLESHOOTING</h2>
+				<div style="background: #000; padding: 15px; border-radius: 4px; border-left: 4px solid var(--danger); font-size: 0.8rem; color: #94a3b8;">
+					<strong>CRITICAL:</strong> Malformed dates/times in CSVs are the #1 cause of simulation failure. Check browser Console (F12) for "Undefined" errors if the simulation won't start.
+				</div>
+
+			</div>
+
+			<!-- Footer -->
+			<div style="background: #0b1120; border-top: 1px solid var(--border); padding: 15px 25px; border-radius: 0 0 6px 6px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+				<div style="font-size:var(--fs-xs); color:var(--muted2); font-weight:bold; letter-spacing:2px;">
+					SYSTEM STATUS: <span style="color:var(--safe)">OPTIMAL</span>
+				</div>
+				<div style="font-size:var(--fs-xs); color:var(--muted2); font-weight:bold; letter-spacing:1px; text-transform:uppercase;">
+					Developed by <span style="color:var(--safe);">Israel (Izzy) Boyd</span> &amp; <span style="color:var(--accent);">Gemini AI</span>
+				</div>
+			</div>
+
+			</div><!-- modal-body -->
+		</div><!-- modal-panel -->
+		</div><!-- readme-modal -->
+
+		<div id="data-format-modal" class="name-modal" style="z-index:150; align-items:flex-start; padding-top:5vh;">
+			<div class="modal-panel" style="width:700px; max-height:85vh;">
+				<div class="modal-header">
+					<div class="modal-title">📊 REQUIRED DATA FORMAT</div>
+					<div style="display:flex; gap:8px;">
+						<button type="button" class="sys-btn btn-op" style="width:auto; padding:8px 16px; margin:0;" onclick="copyTemplate()">📋 COPY TEMPLATE</button>
+						<button type="button" class="sys-btn btn-close" style="width:auto; padding:8px 16px; margin:0;" onclick="document.getElementById('data-format-modal').style.display='none'">CLOSE</button>
+					</div>
+				</div>
+				<div class="modal-body" style="font-size:var(--fs-base); line-height:1.6; color:#e2e8f0;">
+						<p>The Operation Planner can read any `.js` or `.json` file, regardless of its filename, as long as it contains the <code>window.masterData</code> object with the correct matrix structure.</p>
+						<p><strong>Rules:</strong></p>
+						<ul style="margin-top:0;">
+							<li>The array must contain exactly 12 values representing Relative Directions: <strong>0°, 30°, 60°, 90°, 120°, 150°, 180°, 210°, 240°, 270°, 300°, 330°</strong>.</li>
+							<li>Use <code>null</code> for headings that have no data or are explicitly restricted.</li>
+							<li>The keys (e.g., "4", "5", "6") represent the Wave Period (Tp/Ts) in seconds.</li>
+						</ul>
+						<div style="background:#020617; padding:15px; border:1px solid var(--border); border-radius:4px; font-family:monospace; font-size:0.75rem; white-space:pre-wrap; overflow-x:auto; color:#a5b4fc;">window.masterData = {
+	  "MY_CUSTOM_ANALYSIS": {
+		"WAVE_HS_BY_TP": {
+		  "4": [ 1.2,  1.2,	 1.1,  0.8,	 0.6,  0.5,	 0.5,  0.5,	 0.6,  0.8,	 1.1,  1.2],
+		  "5": [ 1.5,  1.4,	 1.2,  0.9,	 0.7,  0.6,	 0.6,  0.6,	 0.7,  0.9,	 1.2,  1.4],
+		  "6": [null, null,	 1.0,  0.8,	 0.5, null, null, null,	 0.5,  0.8,	 1.0, null]
+		}
+	  },
+	  "ANOTHER_ANALYSIS": {
+		"WAVE_HS_BY_TP": {
+		   // ... same structure ...
+		}
+	  }
+	};</div>				
+						<div style="height:200px; width:100%;"></div>
+					</div><!-- modal-body -->
+				</div><!-- modal-panel -->
+			</div><!-- data-format-modal -->
+
+			<div class="hud-alerts" id="system-alerts"></div>
+
+			<div class="hud-overlay hud-left">
+				<div class="card-title">Mission Sequence</div>
+				<div id="op-list" style="font-size:var(--fs-base); font-weight:bold; color:var(--text); display:flex; flex-direction:column; gap:6px;"></div>
+			</div>
+
+			<div class="hud-overlay hud-right">
+				<div class="card-title" style="margin-bottom:10px; color:var(--muted3); text-align:center;">DP Net Vector</div>
+				<svg viewBox="-50 -50 100 100" style="width:80px; height:80px; overflow:visible;">
+					<circle cx="0" cy="0" r="40" fill="none" stroke="var(--border)" stroke-dasharray="2,2"/>
+					<circle cx="0" cy="0" r="20" fill="none" stroke="var(--border)" stroke-dasharray="2,2"/>
+					<g id="net-force-arrow" transform="rotate(0)">
+						<line id="net-force-line" x1="0" y1="0" x2="0" y2="-20" stroke="var(--safe)" stroke-width="4" stroke-linecap="round"/>
+						<polygon id="net-force-head" points="-5,-20 5,-20 0,-30" fill="var(--safe)"/>
+					</g>
+				</svg>
+				<div id="dp-force-readout" style="font-size:var(--fs-md); color:var(--safe); font-weight:900; margin-top:10px; text-align:center;">000°<br><span style="font-size:var(--fs-xs)">LOW</span></div>
+			</div>
+			
+			<div class="compass-container">
+				<div class="heatmap-ring" id="heatmap-ring"></div>
+
+				<div style="position:absolute; top:-60px; width:100%; text-align:center;">
+					<div style="font-size:var(--fs-sm); font-weight:900; letter-spacing:2px; color:var(--safe); text-transform:uppercase; margin-bottom:4px;">Target Setpoint</div>
+					<div style="display:flex; justify-content:center; align-items:flex-end; gap:15px;">
+						<div style="text-align:center;">
+							<div style="color:var(--muted2); font-size:var(--fs-xs); font-weight:900; margin-bottom:2px;">-TOL</div>
+							<div id="tgt-lower" style="color:var(--muted); font-size:var(--fs-md); font-weight:bold;">--</div>
+						</div>
+						<div id="tgt-readout" style="color:var(--safe); font-weight:900; font-size:1.5rem; border-bottom:2px solid var(--safe); padding:0 8px; line-height:1;">---°</div>
+						<div style="text-align:center;">
+							<div style="color:var(--muted2); font-size:var(--fs-xs); font-weight:900; margin-bottom:2px;">+TOL</div>
+							<div id="tgt-upper" style="color:var(--muted); font-size:var(--fs-md); font-weight:bold;">--</div>
+						</div>
+					</div>
+				</div>
+
+				<svg id="plot-svg" viewBox="0 0 500 500" style="width:100%; height:100%; position: absolute; z-index: 5;">
+		
+		<circle cx="250" cy="250" r="210" fill="none" stroke="var(--border)" stroke-width="2"/>
+		<circle cx="250" cy="250" r="140" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+		<circle cx="250" cy="250" r="70" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,4"/>
+		<line x1="250" y1="40" x2="250" y2="460" stroke="var(--border)" stroke-width="1" opacity="0.5"/>
+		<line x1="40" y1="250" x2="460" y2="250" stroke="var(--border)" stroke-width="1" opacity="0.5"/>
+		
+		<g id="guidelines-group" style="display:none; pointer-events:none;">
+			<path id="tol-area" fill="rgba(16, 185, 129, 0.1)" stroke="none"/>
+			<line id="tol-left" x1="250" y1="250" x2="250" y2="40" stroke="var(--safe)" stroke-width="1" opacity="0.4"/>
+			<line id="tol-right" x1="250" y1="250" x2="250" y2="40" stroke="var(--safe)" stroke-width="1" opacity="0.4"/>
+			<line x1="250" y1="250" x2="250" y2="40" stroke="var(--safe)" stroke-width="2" stroke-dasharray="4,4" opacity="0.8"/>
+		</g>
+
+		<g id="arr-wind" class="env-arrow" data-type="wind" onmousemove="showTT(event, 'WIND', 'wind')" onmouseleave="hideTT()">
+			<circle cx="250" cy="30" r="25" class="arrow-hitbox"/>
+			<polygon points="240,45 260,45 250,15 250,38" fill="var(--c-wind)" stroke="#000" stroke-width="1"/>
+			<text x="250" y="8" fill="var(--c-wind)" font-size="12" font-weight="900" text-anchor="middle">WND</text>
+		</g>
+		
+		<g id="arr-sea" class="env-arrow" data-type="sea" onmousemove="showTT(event, 'SEA', 'sea')" onmouseleave="hideTT()">
+			<circle cx="250" cy="30" r="25" class="arrow-hitbox"/>
+			<polygon points="240,45 260,45 250,15 250,38" fill="var(--c-sea)" stroke="#000" stroke-width="1"/>
+			<text x="250" y="8" fill="var(--c-sea)" font-size="12" font-weight="900" text-anchor="middle">SEA</text>
+		</g>
+		
+		<g id="arr-swell" class="env-arrow" data-type="swell" onmousemove="showTT(event, 'SWELL', 'swell')" onmouseleave="hideTT()">
+			<circle cx="250" cy="30" r="25" class="arrow-hitbox"/>
+			<polygon points="240,45 260,45 250,15 250,38" fill="var(--c-swell)" stroke="#000" stroke-width="1"/>
+			<text x="250" y="8" fill="var(--c-swell)" font-size="12" font-weight="900" text-anchor="middle">SWL</text>
+		</g>
+		
+		<g id="arr-curr" class="env-arrow" data-type="curr" onmousemove="showTT(event, 'CURR', 'curr')" onmouseleave="hideTT()">
+			<circle cx="250" cy="30" r="25" class="arrow-hitbox"/>
+			<polygon points="240,45 260,45 250,15 250,38" fill="var(--c-curr)" stroke="#000" stroke-width="1"/>
+			<text x="250" y="8" fill="var(--c-curr)" font-size="12" font-weight="900" text-anchor="middle">CUR</text>
+		</g>
+
+		<g id="vessel-group">
+			<polygon points="230,390 230,170 250,110 270,170 270,390" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+			<circle cx="250" cy="250" r="2" fill="#cbd5e1"/>
+			<text id="vessel-padlock" x="250" y="260" fill="var(--safe)" font-size="14" text-anchor="middle" style="display:none;">🔒</text>
+		</g>
+
+		<g id="hdg-handle" class="env-arrow" data-type="hdg">
+			<circle cx="250" cy="100" r="30" class="arrow-hitbox" fill="transparent" style="cursor: grab;" />
+			<circle cx="250" cy="100" r="6" fill="var(--safe)" stroke="#000" stroke-width="2" />
+			<polygon id="hdg-poly" points="240,45 260,45 250,20" fill="var(--safe)" style="pointer-events: none;" />
+		</g>
+		
+	</svg>
+				
+				<div style="position:absolute; bottom:-45px; width:100%; text-align:center;">
+					<div style="font-size:var(--fs-sm); font-weight:900; letter-spacing:2px; color:var(--muted); text-transform:uppercase;">Vessel Heading</div>
+					<div id="hdg-readout" style="font-size:2rem; font-weight:900; color:var(--text); line-height:1.1;">000°</div>
+				</div>
+
+			</div>
+
+			<div id="alert-modal" class="name-modal" style="z-index:200;">
+				<div class="modal-panel">
+					<div class="modal-header">
+						<div class="modal-title">🚨 SYSTEM ALERT BREAKDOWN</div>
+						<button type="button" class="sys-btn btn-close" style="width:auto; padding:8px 16px; margin:0;" onclick="document.getElementById('alert-modal').style.display='none'">CLOSE</button>
+					</div>
+					<div id="alert-modal-content" class="modal-body"></div>
+				</div>
+			</div>
+		</main>
+
+		<aside>
+			<div style="padding:10px 15px; background:var(--deep); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px;">
+				<div style="flex:1"><label style="margin:0;">Block Dur (Hrs)</label><input type="number" id="wx-dur" value="6" step="0.5" class="ent-jump" data-next="btn-add-wx"></div>
+				<button type="button" class="sys-btn btn-wx" id="btn-add-wx" style="flex:1.5; margin:0; padding:10px;" onclick="addWx()">SAVE WX DATA</button>
+			</div>
+
+			<div class="scroll-container">
+				<div class="ui-card c-wind">
+					<div class="card-title" style="color:var(--c-wind)">Wind <div class="rel-box" id="rel-wind">REL: --°</div></div>
+					<div class="grid-2">
+						<div><label>Dir (°T)</label><input type="number" id="w-dir" value="0" class="ent-jump" data-next="w-spd"></div>
+						<div><label>Speed (Kts)</label><input type="number" id="w-spd" value="15" class="ent-jump" data-next="sea-dir"></div>
+					</div>
+				</div>
+				<div class="ui-card c-sea">
+					<div class="card-title" style="color:var(--c-sea)">Wind Sea <div class="rel-box" id="rel-sea">REL: --°</div></div>
+					<div class="grid-3">
+						<div><label>Dir (°T)</label><input type="number" id="sea-dir" value="270" class="ent-jump" data-next="sea-hs"></div>
+						<div><label>Hs (M)</label><input type="number" id="sea-hs" value="1.2" step="0.1" class="ent-jump" data-next="sea-tp"></div>
+						<div><label>Tp (S)</label><input type="number" id="sea-tp" value="5" step="0.5" class="ent-jump" data-next="sw-dir"></div>
+					</div>
+				</div>
+				<div class="ui-card c-swell">
+					<div class="card-title" style="color:var(--c-swell)">Primary Swell <div class="rel-box" id="rel-swell">REL: --°</div></div>
+					<div class="grid-3">
+						<div><label>Dir (°T)</label><input type="number" id="sw-dir" value="180" class="ent-jump" data-next="sw-hs"></div>
+						<div><label>Hs (M)</label><input type="number" id="sw-hs" value="0.8" step="0.1" class="ent-jump" data-next="sw-tp"></div>
+						<div><label>Ts (S)</label><input type="number" id="sw-tp" value="10" step="0.5" class="ent-jump" data-next="c-dir"></div>
+					</div>
+				</div>
+				<div class="ui-card c-curr">
+					<div class="card-title" style="color:var(--c-curr)">Current <div class="rel-box" id="rel-curr">REL: --°</div></div>
+					<div class="grid-2">
+						<div><label>Dir (°T)</label><input type="number" id="c-dir" value="90" class="ent-jump" data-next="c-spd"></div>
+						<div><label>Speed (Kts)</label><input type="number" id="c-spd" value="0.5" step="0.1" class="ent-jump" data-next="wx-dur"></div>
+					</div>
+				</div>
+			</div>
+
+			<div id="wx-edit-panel" class="edit-overlay" style="border-left: 2px solid #cbd5e1;">
+				<div class="card-title" style="font-size:1.1rem; color:#f8fafc">Edit Weather Block</div>
+				<div><label>Duration (Hrs)</label><input type="number" id="ed-wx-dur" step="0.5"></div>
+				
+				<div class="grid-2" style="margin-top:5px">
+					<div><label style="color:var(--c-wind)">Wind Dir</label><input type="number" id="ed-w-dir" class="ent-jump" data-next="ed-w-spd"></div>
+					<div><label style="color:var(--c-wind)">Wind Kts</label><input type="number" id="ed-w-spd" class="ent-jump" data-next="ed-sea-dir"></div>
+				</div>
+				<div class="grid-3">
+					<div><label style="color:var(--c-sea)">Sea Dir</label><input type="number" id="ed-sea-dir" class="ent-jump" data-next="ed-sea-hs"></div>
+					<div><label style="color:var(--c-sea)">Sea Hs</label><input type="number" id="ed-sea-hs" step="0.1" class="ent-jump" data-next="ed-sea-tp"></div>
+					<div><label style="color:var(--c-sea)">Sea Tp</label><input type="number" id="ed-sea-tp" step="0.5" class="ent-jump" data-next="ed-sw-dir"></div>
+				</div>
+				<div class="grid-3">
+					<div><label style="color:var(--c-swell)">Swl Dir</label><input type="number" id="ed-sw-dir" class="ent-jump" data-next="ed-sw-hs"></div>
+					<div><label style="color:var(--c-swell)">Swl Hs</label><input type="number" id="ed-sw-hs" step="0.1" class="ent-jump" data-next="ed-sw-tp"></div>
+					<div><label style="color:var(--c-swell)">Swl Ts</label><input type="number" id="ed-sw-tp" step="0.5" class="ent-jump" data-next="ed-c-dir"></div>
+				</div>
+				<div class="grid-2">
+					<div><label style="color:var(--c-curr)">Cur Dir</label><input type="number" id="ed-c-dir" class="ent-jump" data-next="ed-c-spd"></div>
+					<div><label style="color:var(--c-curr)">Cur Kts</label><input type="number" id="ed-c-spd" step="0.1" class="ent-jump" data-next="btn-save-wx"></div>
+				</div>
+
+				<div style="display:flex; gap:4px; margin-top:auto;">
+					<button type="button" class="sys-btn btn-wx" style="flex:1;" onclick="saveWxEdit()">Save</button>
+					<button type="button" class="sys-btn" style="flex:1; background:var(--danger); color:#fff;" onclick="deleteWx()">Delete</button>
+				</div>
+				<button type="button" class="sys-btn btn-close" onclick="closeOverlays()">Cancel</button>
+			</div>
+		</aside>
+
+	<footer>
+	<div style="display:flex; justify-content:space-between; align-items:center;">
+		<label style="margin:0; font-size:var(--fs-sm); font-weight:900; color:var(--muted3); letter-spacing:0.5px;">1. OPERATIONAL SEQUENCE</label>
+		<button class="reset-btn reset-btn-ops" onclick="if(confirm('⚠️ Delete all operations? This cannot be undone.')) { resetOps(); }">RESET OPERATIONS</button>
+	</div>
+
+	<div class="t-track" id="tr-op" onmousedown="scrub(event)">
+		<div class="ph" id="ph-op"></div>
+		<div id="cont-op" style="display:flex; width:100%; height:100%;"></div>
+	</div>
+
+	<div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+		<label style="margin-bottom:0; font-size:var(--fs-sm); font-weight:900; color:var(--muted3); letter-spacing:0.5px;">
+			2. ENVIRONMENTAL FORECAST <span id="wx-note" style="color:var(--warn); margin-left:10px; font-size:var(--fs-xs);"></span>
+		</label>
+		<button class="reset-btn reset-btn-wx" onclick="if(confirm('⚠️ Delete the forecast? This resets the timeline zero point.')) { state.wx=[]; state.curr=[]; state.start=null; sync(); }">RESET FORECAST</button>
+	</div>
+
+	<div class="t-track wx-track" id="tr-wx" onmousedown="scrub(event)" onmousemove="showTideTooltip(event)" onmouseleave="hideTideTooltip()" style="position:relative;">
+		<div id="tide-tooltip" class="tide-tooltip"></div>
+		<div id="cont-wx" style="display:flex; width:100%; height:100%; position:relative; z-index:1;"></div>
+		<div id="svg-tide" style="position:absolute; inset:0; z-index:3; pointer-events:none; opacity:0.8;"></div>
+		<div class="ph" id="ph-wx" style="z-index:4;"></div>
+	</div>
+
+	<div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; margin-top:5px;">
+		<div style="display:flex; align-items:center; gap:12px;">
+			<div id="t-digital" style="display:flex; align-items:center;">
+				<span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: --/-- --:--</span>
+			</div>
+			<div id="wx-age-pill" style="display:none; font-size:var(--fs-xs); font-weight:700; letter-spacing:1px; padding:2px 8px; border-radius:10px; border:1px solid var(--border); color:var(--muted);">
+				WX: —
+			</div>
+			<!-- mission-change-pill moved to header badge -->
+		</div>
+		<div style="display:flex; gap:8px; align-items:center;">
+			<input type="file" id="wx-csv-input"   accept=".csv,.txt" style="display:none" onchange="handleStormGeoCSV(event)">
+			<input type="file" id="curr-csv-input" accept=".csv,.txt" style="display:none" onchange="handleStormGeoCurrentCSV(event)">
+			<input type="file" id="tide-txt-input" accept=".txt,.csv" style="display:none" onchange="handleTideData(event)">
+
+			<button class="top-btn" style="border-color:var(--warn); color:var(--warn);"     onclick="triggerStormGeo()">⛅ STORMGEO WX</button>
+			<button class="top-btn" style="border-color:#c084fc; color:#c084fc;"              onclick="triggerStormGeoCurrent()">🌊 STORMGEO CURRENTS</button>
+			<button class="top-btn" style="border-color:var(--tide); color:var(--tide);"      onclick="triggerTide()">📈 TIDAL DATA</button>
+
+			<div style="width:1px; height:20px; background:var(--border); margin:0 4px;"></div>
+
+			<button id="btn-sim-speed" class="sim-btn" onclick="toggleSimSpeed()">1.0X SPD</button>
+			<button id="btn-sim-loop"  class="sim-btn" style="color:var(--safe); border-color:var(--safe);" onclick="toggleSimLoop()">🔁 LOOP: ON</button>
+			<button id="btn-sim"       class="sim-btn" style="color:var(--safe); border-color:var(--safe); padding:3px 14px;" onclick="toggleSim()">▶ RUN SIMULATION</button>
+		</div>
+	</div>
+</footer>
+
+	<script>
+			// 1. DOM Failsafes
+			document.querySelectorAll('button').forEach(b => b.type = 'button');
+			const $ = id => document.getElementById(id);
+
+			// --- MODAL INPUT HELPER (replaces all prompt() calls) ---
+			// Usage: showNameModal("Label:", "default", callback)
+			function showNameModal(label, defaultVal, callback) {
+				const modal = $('name-input-modal');
+				const labelEl = $('name-input-label');
+				const inputEl = $('name-input-field');
+				const okBtn = $('name-input-ok');
+				const cancelBtn = $('name-input-cancel');
+				if (!modal) { callback(prompt(label, defaultVal)); return; }
+				labelEl.textContent = label;
+				inputEl.value = defaultVal || '';
+				modal.style.display = 'flex';
+				inputEl.focus(); inputEl.select();
+				const finish = (val) => {
+					modal.style.display = 'none';
+					okBtn.onclick = null; cancelBtn.onclick = null;
+					inputEl.onkeydown = null;
+					callback(val);
+				};
+				okBtn.onclick = () => finish(inputEl.value.trim());
+				cancelBtn.onclick = () => finish(null);
+				inputEl.onkeydown = (e) => { if (e.key === 'Enter') finish(inputEl.value.trim()); if (e.key === 'Escape') finish(null); };
+			}
+
+			// 2. Global State Declaration
+			let orcaData = {}; 
+			// Scroll Cards
+			let lastActiveOp = -1;
+
+			// --- NAMED CONSTANTS (no more magic numbers) ---
+			const WARN_THRESHOLD  = 0.8;   // fraction of limit that triggers amber warning
+			const HDG_STEP_DEG    = 5;     // degrees per heatmap gradient stop
+			const HDG_BUCKETS     = 12;    // number of 30° heading buckets in the analysis matrix
+			const MS_PER_HOUR     = 3600000;
+			const MAX_MATRIX_TP   = 12;    // maximum wave period index in matrix
+			
+			let state = { 
+				t: 0, t_pop: 24, hdg: 0, 
+				start: new Date("2026-04-03T08:00"), 
+				ops: [], wx: [], curr: [], tide: [],
+				editOpIdx: -1, editWxIdx: -1, isEditWxOpen: false 
+			};
+			let draggingType = null;
+			let hdgOverride = false;
+			let simTimer = null; 
+			let simSpeed = 1.0; 
+			let simLoop = true; 
+			let isScrubbing = false;
+
+			// 3. FILE UPLOAD ENGINE
+						function handleFileUpload(event) {
+					const file = event.target.files[0];
+					if (!file) return;
+
+					const reader = new FileReader();
+					reader.onload = function(e) {
+						const content = e.target.result.trim();
+
+						try {
+							// ── FORMAT 1: New CSV plan (# WxPlanner Plan v2) ──
+							if (content.startsWith('# WxPlanner Plan')) {
+								loadWxPlannerCSV(content);
+								return;
+							}
+
+							// ── FORMAT 2: Legacy JSON package (OpsPlannerMasterV2) ──
+							if (content.startsWith('{')) {
+								const data = JSON.parse(content);
+								if (data.fileType === "OpsPlannerMasterV2") {
+									state.ops  = data.operations || [];
+									orcaData   = data.analysisLibrary || {};
+									state.tide = data.tideData || [];
+									if (data.missionStart) {
+										state.start = new Date(data.missionStart);
+										if ($('mission-start')) $('mission-start').value = data.missionStart.substring(0,16);
+									}
+									if (data.globalLimits) applyGlobalLimitsToUI(data.globalLimits);
+									populateDropdownMenus();
+									sync();
+									alert(`✅ PROJECT LOADED: ${data.projectName}`);
+									return;
+								}
+							}
+
+							// ── FORMAT 3: Raw .js Analysis Matrix ──
+							const script = document.createElement('script');
+							script.textContent = content;
+							document.head.appendChild(script);
+							document.head.removeChild(script);
+							orcaData = {};
+							if (window.masterData) {
+								for (const key in window.masterData) {
+									let entry = window.masterData[key];
+									for (const lc of ['WAVE_HS_BY_TP','SWELL_HS_BY_TS']) {
+										if (entry[lc]) {
+											if (!orcaData[key]) orcaData[key] = {};
+											orcaData[key][lc] = entry[lc];
+										}
+									}
+									if (!orcaData[key]) orcaData[key] = entry;
+								}
+								populateDropdownMenus();
+								alert("✅ Analysis Data Loaded!");
+							}
+						} catch (err) {
+							console.error("Load Error:", err);
+							alert("Failed to parse file. Check format.");
+						}
+					};
+					reader.readAsText(file);
+					event.target.value = '';
+				}
+
+				// ── CSV PLAN LOADER ──
+				function loadWxPlannerCSV(text) {
+					const lines = text.split('\n');
+					let projectName = 'Loaded Plan';
+					state.ops  = [];
+					state.tide = [];
+					orcaData   = {};
+					const newOrcaData = {};
+
+					for (const raw of lines) {
+						const line = raw.trim();
+						if (!line) continue;
+
+						// Header metadata
+						if (line.startsWith('# Project,'))      { projectName = line.split(',').slice(1).join(','); continue; }
+						if (line.startsWith('# MissionStart,')) {
+							const iso = line.split(',')[1];
+							if (iso) {
+								state.start = new Date(iso);
+								if ($('mission-start')) $('mission-start').value = iso.substring(0,16);
+							}
+							continue;
+						}
+						if (line.startsWith('# GlobalLimits,')) {
+							const gl = {};
+							line.split(',').slice(1).forEach(part => {
+								const [k, v] = part.split('=');
+								if (k && v !== undefined) gl[k.trim()] = parseFloat(v) || null;
+							});
+							applyGlobalLimitsToUI(gl);
+							continue;
+						}
+						if (line.startsWith('#')) continue;
+
+						const cols = line.split(',');
+						const type = cols[0].toUpperCase();
+
+						if (type === 'OP') {
+							// OP,label,start,end,fixedHdg,hdgMode,refs,hasLim,limType,limVal,limDir,limTol,hasWaveLimit,maxHs
+							const refs = (cols[6] || 'NONE').split('|').filter(Boolean);
+							state.ops.push({
+								label:    (cols[1] || '').replace(/^"|"$/g,'').replace(/""/g,'"'),
+								start:    parseFloat(cols[2]) || 0,
+								end:      parseFloat(cols[3]) || 0,
+								fixedHdg: parseInt(cols[4])   || 0,
+								hdgMode:  cols[5] || '45',
+								refs,
+								hasWaveLimit: cols[12] === '1',
+								maxHs:        parseFloat(cols[13]) || 2.5,
+								completed:    cols[14] === '1',
+								hasLim:   cols[7] === '1',
+								limType:  cols[8] || 'WIND',
+								limVal:   parseFloat(cols[9])  || 0,
+								limDir:   parseInt(cols[10])   || 0,
+								limTol:   parseInt(cols[11])   || 45,
+							});
+						} else if (type === 'MATRIX') {
+							// MATRIX,analysisId,limitClass,tp,v0,v30,...v330
+							const id = cols[1], lc = cols[2], tp = cols[3];
+							const vals = cols.slice(4, 16).map(v => v === '' || v === undefined ? null : parseFloat(v));
+							if (!newOrcaData[id])     newOrcaData[id]     = {};
+							if (!newOrcaData[id][lc]) newOrcaData[id][lc] = {};
+							newOrcaData[id][lc][tp] = vals;
+						} else if (type === 'TIDE') {
+							state.tide.push({ hour: parseFloat(cols[1]) || 0, height: parseFloat(cols[2]) || 0 });
+						}
+					}
+
+					// Flatten to single-level for getLimit compatibility
+					// orcaData[analysisId][tp] = [12 values]
+					Object.keys(newOrcaData).forEach(id => {
+						orcaData[id] = {};
+						const entry = newOrcaData[id];
+						// Store under each limitClass key for multi-limit support
+						Object.keys(entry).forEach(lc => {
+							if (!orcaData[id][lc]) orcaData[id][lc] = {};
+							Object.keys(entry[lc]).forEach(tp => {
+								orcaData[id][lc][tp] = entry[lc][tp];
+							});
+						});
+						// Also expose primary matrix flat for legacy getLimit(id,tp,dir)
+						const primaryLc = Object.keys(entry)[0];
+						if (primaryLc) {
+							Object.keys(entry[primaryLc]).forEach(tp => {
+								orcaData[id][tp] = entry[primaryLc][tp];
+							});
+						}
+					});
+
+					populateDropdownMenus();
+					sync();
+					alert(`✅ PLAN LOADED: ${projectName} — ${state.ops.length} ops, ${Object.keys(orcaData).length} matrices`);
+				}
+
+			function populateDropdownMenus() {
+				const sel1 = $('op-sel');
+				const edSel1 = $('ed-op-sel');
+				const sel2 = $('op-sel-2');
+				const edSel2 = $('ed-op-sel-2');
+				const btn = $('btn-add-task'); // Assuming your Add Task button has this ID
+
+				const noneMatrixOpt = '<option value="NONE">-- NO MATRIX (Global Limits Only) --</option>';
+				const noneOpt = '<option value="NONE">-- None --</option>';
+				const awaitingOpt = '<option value="NONE" disabled selected>⚠️ Awaiting Library Data...</option>';
+
+				// 1. Set Defaults
+				if(sel1) sel1.innerHTML = noneMatrixOpt + awaitingOpt;
+				if(edSel1) edSel1.innerHTML = noneMatrixOpt + awaitingOpt;
+				if(sel2) sel2.innerHTML = noneOpt;
+				if(edSel2) edSel2.innerHTML = noneOpt;
+
+				// 2. Disable the button while waiting (Safety Shield)
+				if (btn) {
+					btn.disabled = true;
+					btn.style.opacity = '0.5';
+					btn.innerHTML = "⌛ LOADING DATA...";
+				}
+
+				// 3. If we have data, clear "Awaiting" and populate
+				if (orcaData && Object.keys(orcaData).length > 0) {
+					// Reset to just the NONE option before adding the library
+					if(sel1) sel1.innerHTML = noneMatrixOpt;
+					if(edSel1) edSel1.innerHTML = noneMatrixOpt;
+
+					Object.keys(orcaData).forEach(key => {
+						const cleanLabel = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+						const optHTML = `<option value="${key}">${cleanLabel}</option>`;
+						if(sel1) sel1.innerHTML += optHTML;
+						if(edSel1) edSel1.innerHTML += optHTML;
+						if(sel2) sel2.innerHTML += optHTML;
+						if(edSel2) edSel2.innerHTML += optHTML;
+					});
+
+					// Re-enable the button
+					if (btn) {
+						btn.disabled = false;
+						btn.style.opacity = '1';
+						btn.innerHTML = "ADD TASK TO TIMELINE";
+					}
+				}
+			}
+
+			// 5. Limit Math Engine
+	function getLimit(analysisId, tp, relDir) {
+		const analysis = orcaData[analysisId];
+		if (!analysis) return null; 
+
+		// --- THE FIX: Bridge the Mapping Gap ---
+		// Look for the new Excel-style nested Limit Class, fallback to old flat style
+		let matrix = analysis;
+		if (analysis["WAVE_HS_BY_TP"]) {
+			matrix = analysis["WAVE_HS_BY_TP"];
+		} else if (analysis["SWELL_HS_BY_TS"]) {
+			matrix = analysis["SWELL_HS_BY_TS"];
+		} else if (Object.keys(analysis).length > 0 && typeof analysis[Object.keys(analysis)[0]] === 'object' && !Array.isArray(analysis[Object.keys(analysis)[0]])) {
+			// If it's a custom class name from Excel (like CURRENT_KNOTS), just grab the first one
+			matrix = analysis[Object.keys(analysis)[0]];
+		}
+
+		if (!matrix) return null; 
+		
+		// --- Existing Interpolation Math ---
+		let clampedTp = Math.max(0, Math.min(MAX_MATRIX_TP, tp)); 
+		let tpLow = Math.floor(clampedTp), tpHigh = Math.ceil(clampedTp), tpFrac = clampedTp - tpLow;
+		let rDir = (relDir + 360) % 360;
+		let colFloat = rDir / 30;
+		let colLow = Math.floor(colFloat) % HDG_BUCKETS, colHigh = Math.ceil(colFloat) % HDG_BUCKETS, colFrac = colFloat - Math.floor(colFloat);
+		
+		let v00 = (matrix[tpLow] && matrix[tpLow][colLow] !== null) ? matrix[tpLow][colLow] : null;
+		let v01 = (matrix[tpLow] && matrix[tpLow][colHigh] !== null) ? matrix[tpLow][colHigh] : null;
+		let v10 = (matrix[tpHigh] && matrix[tpHigh][colLow] !== null) ? matrix[tpHigh][colLow] : null;
+		let v11 = (matrix[tpHigh] && matrix[tpHigh][colHigh] !== null) ? matrix[tpHigh][colHigh] : null;
+		
+		if (v00 === null || v01 === null || v10 === null || v11 === null) return null;
+
+		let valLowTp = v00 + (v01 - v00) * colFrac;
+		let valHighTp = v10 + (v11 - v10) * colFrac;
+		return valLowTp + (valHighTp - valLowTp) * tpFrac;
+	}
+
+	function getMinLimit(refs, tp, relDir) {
+		let minLim = 99; 
+		if(!refs) return minLim;
+		for(let r of refs) {
+			if (r !== 'NONE') {
+				let l = getLimit(r, tp, relDir);
+				if(l !== null && l < minLim) minLim = l;
+			}
+		}
+		return minLim;
+	}
+			// Auto-sets the mission clock to the computer's current date/time
+			function initDate() {
+				let now = new Date();
+				let pad = n => n.toString().padStart(2, '0');
+				let localStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+				let ms = $('mission-start');
+				if(ms) { ms.value = localStr; state.start = new Date(localStr); }
+			}
+			initDate();
+
+			// --- COPY TEMPLATE TO CLIPBOARD ---
+					function copyTemplate() {
+						const template = `window.masterData = {
+			  "MY_CUSTOM_ANALYSIS": {
+				"WAVE_HS_BY_TP": {
+				  "4": [ 1.2,  1.2,	 1.1,  0.8,	 0.6,  0.5,	 0.5,  0.5,	 0.6,  0.8,	 1.1,  1.2],
+				  "5": [ 1.5,  1.4,	 1.2,  0.9,	 0.7,  0.6,	 0.6,  0.6,	 0.7,  0.9,	 1.2,  1.4],
+				  "6": [null, null,	 1.0,  0.8,	 0.5, null, null, null,	 0.5,  0.8,	 1.0, null]
+				}
+			  }
+			};`;
+						navigator.clipboard.writeText(template).then(() => {
+							alert("✅ Template copied to clipboard!\n\nPaste it into a blank Notepad file, fill in your data, and save it as 'mission_data.js'");
+						}).catch(err => {
+							console.error("Failed to copy text: ", err);
+							alert("Failed to copy. Please manually highlight and copy the text.");
+						});
+					}
+
+			// Sector Check Math (for Custom Geographic Weather Limits)
+			function checkGeographicLimit(op, wx) {
+				let alerts = [];
+
+				// 1. GLOBAL HS CHECK (The new layer)
+				if (op.hasWaveLimit) {
+					if (wx.seaHs > op.maxHs) {
+						alerts.push({ type: 'HS_GLOBAL', msg: `GLOBAL HS (${wx.seaHs.toFixed(1)}m) > LIMIT`, isWarning: false });
+					} else if (wx.seaHs >= (op.maxHs * WARN_THRESHOLD)) {
+						alerts.push({ type: 'HS_GLOBAL', msg: `GLOBAL HS NEAR LIMIT`, isWarning: true });
+					}
+				}
+
+				// 2. VESSEL SECTOR CHECK (The old layer)
+				if (op.hasLim) {
+					let force = op.limType === 'WIND' ? wx.wSpd : wx.cSpd;
+					let dir = op.limType === 'WIND' ? wx.wDir : wx.cDir;
+					let lDir = parseFloat(op.limDir);
+					let lTol = parseFloat(op.limTol);
+					let diff = Math.abs((dir - lDir + 540) % 360 - 180);
+					
+					if (diff <= lTol) { 
+						if (force > op.limVal) {
+							alerts.push({ type: op.limType, msg: `${op.limType} (${force.toFixed(1)}k) > SECTOR LIMIT`, isWarning: false });
+						} else if (force >= (op.limVal * WARN_THRESHOLD)) {
+							alerts.push({ type: op.limType, msg: `${op.limType} NEAR SECTOR LIMIT`, isWarning: true });
+						}
+					}
+				}
+
+				return {
+					failed: alerts.some(a => !a.isWarning),
+					warning: alerts.some(a => a.isWarning),
+					alertList: alerts // Return the full array for the UI to map correctly
+				};
+			}
+			
+			// This solves the Print vs Simulation bug by doing the math once for both
+			function getOptimalHdg(op, wx) {
+				let tol = parseInt(op.hdgMode);
+				if (isNaN(tol)) tol = 0;
+				let sDir = op.fixedHdg;
+				if (tol === 0) return sDir;
+
+				let bestHdg = sDir;
+				let bestMargin = -9999;
+				for (let offset = -tol; offset <= tol; offset++) {
+					let testHdg = (sDir + offset + 360) % 360;
+					let stern = (testHdg + 180) % 360;
+					let relSea = (stern - wx.seaDir + 360) % 360;
+					let relSw = (stern - wx.swDir + 360) % 360;
+
+					let limSea = getMinLimit(op.refs, wx.seaTp, relSea);
+					let limSw = getMinLimit(op.refs, wx.swTp, relSw);
+
+					let seaMargin = (limSea !== null && limSea !== 99) ? (limSea - wx.seaHs) : 999;
+					let swMargin  = (limSw !== null && limSw !== 99) ? (limSw - wx.swHs) : 999;
+
+					let currentMargin = Math.min(seaMargin, swMargin);
+					let centerBias = (tol - Math.abs(offset)) * 0.001;
+					let score = currentMargin + centerBias;
+
+					if (score > bestMargin) {
+						bestMargin = score;
+						bestHdg = testHdg;
+					}
+				}
+				return bestHdg;
+			}
+
+			// 6. Heatmap Generation
+			// --- SHARED HELPER: builds the conic-gradient stop array for both live HUD and print ---
+			function buildHeatmapStops(op, wx) {
+				let stops = [];
+				let geoCheck = checkGeographicLimit(op, wx);
+				for (let h = 0; h <= 360; h += HDG_STEP_DEG) {
+					let stern = (h + 180) % 360;
+					let relSea = (stern - wx.seaDir + 360) % 360;
+					let relSw  = (stern - wx.swDir  + 360) % 360;
+					let limSea = getMinLimit(op.refs, wx.seaTp, relSea);
+					let limSw  = getMinLimit(op.refs, wx.swTp,  relSw);
+
+					let isSafe = true, isWarning = false;
+					if (limSea !== null && limSea !== 99) {
+						if (wx.seaHs > limSea) isSafe = false;
+						else if (wx.seaHs >= limSea * WARN_THRESHOLD) isWarning = true;
+					}
+					if (limSw !== null && limSw !== 99) {
+						if (wx.swHs > limSw) isSafe = false;
+						else if (wx.swHs >= limSw * WARN_THRESHOLD) isWarning = true;
+					}
+					if (geoCheck.failed) isSafe = false;
+					else if (geoCheck.warning) isWarning = true;
+
+					let color = 'rgba(16, 185, 129, 0.6)';
+					if (!isSafe) color = 'rgba(239, 68, 68, 0.8)';
+					else if (isWarning) color = 'rgba(245, 158, 11, 0.8)';
+					stops.push(`${color} ${h}deg`);
+				}
+				return stops;
+			}
+
+			function generateHeatmap(op, wx) {
+		let warnings = [];
+		if (!op || !wx) {
+			$('heatmap-ring').style.background = 'transparent';
+			$('system-alerts').innerHTML = '';
+			return;
+		}
+
+		// 1. HEADING LOCK STATUS
+		let tol = parseInt(op.hdgMode);
+		if (isNaN(tol)) tol = 0;
+		if (tol === 0) {
+			warnings.push(`<div class="alert-box alert-safe">🔒 HEADING LOCKED (${op.fixedHdg}°)</div>`);
+		}
+
+		// 2. RUN SAFETY ENGINES
+		// Get the result from the refactored Geographic/Global engine
+		let geoCheck = checkGeographicLimit(op, wx);
+		
+		let currentStern = (state.hdg + 180) % 360;
+		let rSeaCur = (currentStern - wx.seaDir + 360) % 360;
+		let rSwCur = (currentStern - wx.swDir + 360) % 360;
+		
+		// Check Analysis Matrices (Sea & Swell)
+		let cLimSea = getMinLimit(op.refs, wx.seaTp, rSeaCur);
+		let cLimSw = getMinLimit(op.refs, wx.swTp, rSwCur);
+
+		if (cLimSea !== null && cLimSea !== 99 && wx.seaHs > cLimSea) {
+			warnings.push(`<div class="alert-box alert-danger" onclick="openAlertModal('SEA')">⚠️ SEA Hs (${wx.seaHs.toFixed(1)}m) > Lim</div>`);
+		}
+		if (cLimSw !== null && cLimSw !== 99 && wx.swHs > cLimSw) {
+			warnings.push(`<div class="alert-box alert-danger" onclick="openAlertModal('SWELL')">⚠️ SWL Hs (${wx.swHs.toFixed(1)}m) > Lim</div>`);
+		}
+
+		// 3. DISPATCH DYNAMIC ALERTS (Global Hs & Sector Limits)
+		if (geoCheck.alertList && geoCheck.alertList.length > 0) {
+			geoCheck.alertList.forEach(a => {
+				let css = a.isWarning ? 'alert-safe' : 'alert-danger';
+				warnings.push(`<div class="alert-box ${css}" onclick="openAlertModal('${a.type}')">⚠️ ${a.msg}</div>`);
+			});
+		}
+
+		// 3b. GLOBAL LIMITS (wind / wave / current / temperature)
+		const gl = (typeof getGlobalLimits === 'function') ? getGlobalLimits() : {};
+		if (gl.wind !== null && gl.wind !== undefined && wx.wSpd > gl.wind) {
+			warnings.push(`<div class="alert-box alert-danger">💨 GLOBAL WIND LIMIT: ${wx.wSpd.toFixed(0)}k > ${gl.wind}kts</div>`);
+		} else if (gl.wind !== null && gl.wind !== undefined && wx.wSpd >= gl.wind * WARN_THRESHOLD) {
+			warnings.push(`<div class="alert-box alert-safe">💨 WIND NEAR GLOBAL LIMIT (${Math.round(wx.wSpd / gl.wind * 100)}%)</div>`);
+		}
+		if (gl.wave !== null && gl.wave !== undefined && wx.seaHs > gl.wave) {
+			warnings.push(`<div class="alert-box alert-danger">🌊 GLOBAL WAVE LIMIT: ${wx.seaHs.toFixed(1)}m > ${gl.wave}m</div>`);
+		} else if (gl.wave !== null && gl.wave !== undefined && wx.seaHs >= gl.wave * WARN_THRESHOLD) {
+			warnings.push(`<div class="alert-box alert-safe">🌊 WAVES NEAR GLOBAL LIMIT (${Math.round(wx.seaHs / gl.wave * 100)}%)</div>`);
+		}
+		if (gl.curr !== null && gl.curr !== undefined && wx.cSpd > gl.curr) {
+			warnings.push(`<div class="alert-box alert-danger">🌀 GLOBAL CURRENT LIMIT: ${wx.cSpd.toFixed(1)}k > ${gl.curr}kts</div>`);
+		}
+
+		// Push all gathered cards to the HUD
+		$('system-alerts').innerHTML = warnings.join('');
+
+		// 4. HEATMAP RING GENERATION
+		let stops = buildHeatmapStops(op, wx);
+		
+		// Apply gradient to the HUD ring
+		$('heatmap-ring').style.background = `conic-gradient(from 0deg, ${stops.join(', ')})`;
+	}
+
+		  function openAlertModal(failType) {
+		if (simTimer) toggleSim(); 
+		
+		let curOp = state.ops.find(o => !o.completed && state.t >= o.start && state.t < o.end);
+		if (!curOp) return;
+		
+		let wx = getInterpolatedWx(state.t);
+		let stern = (state.hdg + 180) % 360;
+		let html = '';
+		
+		// --- 1. GLOBAL HS LIMIT MODAL ---
+		if (failType === 'HS_GLOBAL') {
+			html = `<div style="color:#f8fafc; font-size: 0.9rem; line-height: 1.6;">
+				<strong style="color:var(--danger); font-size: 1.1rem;">Global Wave Limit Exceeded:</strong><br><br>
+				Parameter: Maximum Significant Wave Height (Hs)<br>
+				Active Sea State: <span style="color:var(--danger); font-weight: bold;">${wx.seaHs.toFixed(1)} m</span><br>
+				Global Stop Limit: <span style="color:var(--safe); font-weight: bold;">${curOp.maxHs.toFixed(1)} m</span>
+			</div>`;
+			$('alert-modal').firstElementChild.style.width = '350px';
+		} 
+		// --- 2. VESSEL SECTOR LIMIT MODAL ---
+		else if (failType === 'WIND' || failType === 'CURR') {
+			let actualF = failType === 'WIND' ? wx.wSpd : wx.cSpd;
+			let actualD = failType === 'WIND' ? wx.wDir : wx.cDir;
+			let dirLabel = curOp.limDir === 'ALL' ? 'ALL DIR' : `${curOp.limDir}° (±${curOp.limTol}°)`;
+			
+			html = `<div style="color:#f8fafc; font-size: 0.9rem; line-height: 1.6;">
+				<strong style="color:var(--danger); font-size: 1.1rem;">Vessel Sector Limit Exceeded:</strong><br><br>
+				Parameter: ${failType}<br>
+				Active Force: <span style="color:var(--danger); font-weight: bold;">${actualF.toFixed(1)} kts</span> from ${Math.round(actualD)}°T<br>
+				User Limit: ${curOp.limVal} kts from Sector: ${dirLabel}
+			</div>`;
+			$('alert-modal').firstElementChild.style.width = '350px';
+		} 
+		// --- 3. COMPLEX ANALYSIS MATRIX MODAL (RESTORED & FIXED) ---
+		else {
+			let tp = failType === 'SEA' ? wx.seaTp : wx.swTp;
+			let hs = failType === 'SEA' ? wx.seaHs : wx.swHs;
+			let dir = failType === 'SEA' ? wx.seaDir : wx.swDir;
+			let relDir = (stern - dir + 360) % 360;
+			
+			$('alert-modal').firstElementChild.style.width = '950px';
+			
+			curOp.refs.forEach(ref => {
+				if (ref === 'NONE') return;
+				let analysis = orcaData[ref];
+				if (!analysis) return;
+
+				// THE FIX: Dive into the nested Limit Class
+				let matrix = analysis;
+				if (analysis["WAVE_HS_BY_TP"] && failType === 'SEA') matrix = analysis["WAVE_HS_BY_TP"];
+				else if (analysis["SWELL_HS_BY_TS"] && failType === 'SWELL') matrix = analysis["SWELL_HS_BY_TS"];
+				else if (Object.keys(analysis).length > 0 && typeof analysis[Object.keys(analysis)[0]] === 'object') {
+					matrix = analysis[Object.keys(analysis)[0]]; // Fallback for custom classes
+				}
+
+				if (!matrix) return;
+
+				// Safely get the numeric row keys (Periods)
+				let rowKeys = Object.keys(matrix).map(Number).filter(n => !isNaN(n)).sort((a,b)=>a-b);
+				if (rowKeys.length === 0) return;
+
+				let clampedTp = Math.max(0, Math.min(12, tp)); 
+				let tpL = Math.floor(clampedTp);
+				let tpH = Math.ceil(clampedTp);
+				let colFloat = relDir / 30;
+				let colL = Math.floor(colFloat) % 12;
+				let colH = Math.ceil(colFloat) % 12;
+				let isExact = (tpL === tpH && colL === colH);
+				
+				let limitVal = getLimit(ref, tp, relDir);
+				let isFailed = limitVal !== null && hs > limitVal;
+				let titleColor = isFailed ? 'var(--danger)' : 'var(--safe)';
+				let statusText = isFailed ? 'FAILED' : 'SAFE';
+				
+				html += `
+				<div style="background:rgba(0,0,0,0.4); padding:10px; border-radius:6px; margin-bottom:15px; border-left:4px solid ${titleColor}; position:relative;">
+					<div style="position:sticky; top:-15px; background:#0b1120; padding:10px; margin:-10px -10px 10px -10px; border-radius:6px 6px 0 0; border-bottom:1px solid #334155; z-index:10; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+						<span style="color:${titleColor}; font-weight:900; text-transform:uppercase; font-size:0.95rem;">${ref.replace(/_/g, ' ')} [${statusText}]</span><br>
+						<span style="font-size:0.75rem; line-height:1.4; display:inline-block; margin-top:4px; color:#cbd5e1;">
+							<strong>Active Force:</strong> ${failType} (Hs: <span style="color:${isFailed ? 'var(--danger)' : '#fff'}">${hs.toFixed(1)}m</span> | Tp: ${tp.toFixed(1)}s | Rel Dir: ${Math.round(relDir)}°)<br>
+							<strong style="color:${titleColor}">Calculated Limit:</strong> <span style="font-weight:900; font-size:0.85rem;">${limitVal !== null ? limitVal.toFixed(2) + 'm' : 'No Data'}</span> ${!isExact && limitVal !== null ? '<span style="color:#94a3b8;">(Interpolated)</span>' : ''}
+						</span>
+					</div>
+					<div style="overflow-x:auto; background:#020617; border-radius:4px; padding:4px; margin-top:10px;">
+						<table style="width:100%; border-collapse:collapse; font-size:0.65rem; text-align:center; color:#fff; white-space:nowrap;">
+							<tr><th style="border:1px solid #334155; padding:6px; color:var(--accent); background:#0f172a;">Tp \\ Rel°</th>`;
+				
+				for(let i=0; i<12; i++) {
+					let isCol = (i === colL || i === colH) ? 'background:rgba(255,255,255,0.05);' : '';
+					html += `<th style="border:1px solid #334155; padding:6px; background:#0f172a; ${isCol}">${i*30}°</th>`;
+				}
+				html += `</tr>`;
+
+				rowKeys.forEach(r => {
+					let isRow = (r === tpL || r === tpH) ? 'background:rgba(255,255,255,0.05);' : '';
+					html += `<tr style="${isRow}"><td style="border:1px solid #334155; padding:6px; font-weight:bold; color:var(--accent); background:#0f172a;">${r}s</td>`;
+					
+					for(let c=0; c<12; c++) {
+						let val = matrix[r][c];
+						let displayVal = val === null ? 'X' : val.toFixed(2);
+						let isBoundingNode = (r === tpL || r === tpH) && (c === colL || c === colH);
+						let bg = 'transparent'; let fw = 'normal'; let borderStyle = '1px solid #334155';
+
+						if (isBoundingNode) {
+							fw = '900';
+							if (isExact) {
+								bg = isFailed ? 'rgba(239, 68, 68, 0.9)' : 'rgba(16, 185, 129, 0.7)';
+								borderStyle = isFailed ? '2px solid #fca5a5' : '2px solid #6ee7b7';
+							} else {
+								bg = isFailed ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.25)';
+								borderStyle = isFailed ? '2px dashed #ef4444' : '2px dashed #10b981';
+							}
+						}
+						html += `<td style="border:${borderStyle}; padding:6px; background:${bg}; font-weight:${fw};">${displayVal}</td>`;
+					}
+					html += `</tr>`;
+				});
+				html += `</table></div></div>`;
+			});
+			html += `<div style="height: 200px; width: 100%;"></div>`;
+		}
+		
+		// Safety check just in case the HTML element is missing
+		if($('alert-modal-content')) {
+			$('alert-modal-content').innerHTML = html;
+			$('alert-modal').style.display = 'flex';
+		} else {
+			console.error("Missing <div id='alert-modal'> in your HTML body!");
+		}
+		}
+
+		let activeTooltip = null;
+
+	function showTT(evt, label, forceType) {
+		let tt = $('fast-tt');
+		if (!tt) return;
+		
+		activeTooltip = { label, forceType }; // Remember what we are hovering over
+
+		// Pull the data-rel directly from the element so it survives dragging
+		let el = $('arr-' + forceType);
+		let relVal = el ? el.getAttribute('data-rel') : '---';
+		
+		let color = "#fff";
+		if(forceType === 'wind') color = "var(--c-wind)";
+		if(forceType === 'sea') color = "var(--c-sea)";
+		if(forceType === 'swell') color = "var(--c-swell)";
+		if(forceType === 'curr') color = "var(--c-curr)";
+
+		tt.innerHTML = `<span style="color:${color};">${label}</span> [REL: ${relVal}°]`;
+		tt.style.display = 'block';
+		tt.style.left = (evt.pageX + 15) + 'px';
+		tt.style.top = (evt.pageY + 15) + 'px';
+	}
+
+	function hideTT() {
+		activeTooltip = null; // Clear the memory
+		if($('fast-tt')) $('fast-tt').style.display = 'none';
+	}
+
+			// 7. Print Engine
+function printPlan() {
+    // Inner helpers
+    function formatTime(offsetHours) {
+        if (!state.start) return "--/-- --:--";
+        let d = new Date(state.start.getTime());
+        d.setMinutes(d.getMinutes() + (offsetHours * 60));
+        const day   = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year  = d.getFullYear();
+        const hrs   = String(d.getHours()).padStart(2, '0');
+        const mins  = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hrs}:${mins}`;
+    }
+
+    // Helper for the Radar heatmap - uses shared buildHeatmapStops helper
+    function getHeatmapGradient(op, wx) {
+        let stops = buildHeatmapStops(op, wx);
+        return `conic-gradient(from 0deg, ${stops.join(', ')})`;
+    }
+
+    function getLabelCoords(dir, radius) {
+        let rad = (dir - 90) * Math.PI / 180;
+        return { x: 250 + radius * Math.cos(rad), y: 250 + radius * Math.sin(rad) };
+    }
+
+    try {
+    // Defensive: ensure all ops have required fields
+    state.ops.forEach(op => {
+        if (!op.refs) op.refs = ['NONE'];
+        if (!Array.isArray(op.refs)) op.refs = [op.refs];
+        op.hdgMode  = op.hdgMode  ?? '45';
+        op.fixedHdg = op.fixedHdg ?? 0;
+        op.hasLim   = op.hasLim   ?? false;
+    });
+    // Start building HTML
+    let html = `
+        <style>
+            @media print {
+                @page { size: A4 landscape; margin: 10mm; }
+                body { background: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: 'Inter', sans-serif;}
+                .radar-text { font-family: 'Inter', system-ui, sans-serif; font-size: 24px; font-weight: 900; }
+            }
+        </style>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:2px solid #0f172a; padding-bottom:8px; margin-bottom:15px;">
+            <div>
+                <h1 style="margin:0 0 2px 0; font-size:1.4rem; color:#0f172a; text-transform:uppercase;">Operational Summary</h1>
+                <div style="font-size:0.8rem; color:#475569;"><strong>Mission Start (DD/MM):</strong> ${formatTime(0)}</div>
+            </div>
+        </div>`;
+
+    if (state.wx.length === 0 || state.ops.length === 0) { 
+        html += `<p style="text-align:center; padding: 20px;">Missing Operations or Weather Data. Please populate the timeline.</p>`; 
+    } else {
+        // Print completed tasks first as simple summary rows
+        const completedOps = state.ops.filter(o => o.completed);
+        if (completedOps.length) {
+            html += `<div style="margin-bottom:10px; border:1px solid #e2e8f0; border-left:8px solid #94a3b8; background:#f8fafc; padding:8px 15px; border-radius:2px;">
+                <div style="font-size:0.7rem; font-weight:700; color:#94a3b8; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">✓ Completed Operations</div>
+                <table style="width:100%; border-collapse:collapse; font-size:0.72rem;">
+                    <tr style="color:#94a3b8;">
+                        <th style="text-align:left; padding:2px 8px; width:40%;">Task</th>
+                        <th style="text-align:left; padding:2px 8px;">Planned Start</th>
+                        <th style="text-align:left; padding:2px 8px;">Planned End</th>
+                        <th style="text-align:left; padding:2px 8px;">Duration</th>
+                    </tr>
+                    ${completedOps.map(op => `<tr style="border-top:1px solid #e2e8f0; color:#64748b; text-decoration:line-through;">
+                        <td style="padding:3px 8px; font-weight:700;">✓ ${op.label || '—'}</td>
+                        <td style="padding:3px 8px;">${formatTime(op.start)}</td>
+                        <td style="padding:3px 8px;">${formatTime(op.end)}</td>
+                        <td style="padding:3px 8px;">${(op.end - op.start).toFixed(1)}h</td>
+                    </tr>`).join('')}
+                </table>
+            </div>`;
+        }
+
+        let printSegments = [];
+        state.ops.forEach(op => {
+            if (op.completed) return; // skip completed — shown above
+            state.wx.forEach(wx => {
+                let segStart = Math.max(op.start, wx.start);
+                let segEnd = Math.min(op.end, wx.end);
+                if (segStart < (segEnd - 0.01)) {
+                    printSegments.push({ activeOp: op, w: wx, pStart: segStart, pEnd: segEnd });
+                }
+            });
+        });
+        
+        printSegments.sort((a, b) => a.pStart - b.pStart);
+
+        printSegments.forEach(seg => {
+            let activeOp = seg.activeOp;
+            let w = {...seg.w}; // Clone weather so we don't overwrite the original state data
+
+            // --- THE HOURLY SAMPLER ---
+            // We look for a current record where the segment start time fits inside its 1-hour window
+            let cData = (state.curr || []).find(c => seg.pStart >= c.start && seg.pStart < c.end);
+            
+            if (cData) {
+                w.cDir = cData.cDir;
+                w.cSpd = cData.cSpd;
+            } else {
+                // Failsafe: Use weather current or 0
+                w.cDir = w.cDir || 0;
+                w.cSpd = w.cSpd || 0;
+            }
+
+            // Now solve the heading with the injected Current data
+            let bestHdg = getOptimalHdg(activeOp, w);
+            let stern = (bestHdg + 180) % 360;
+            
+            // Recalculate relative angles
+            let relWind = (stern - w.wDir + 360) % 360;
+            let relSea = (stern - w.seaDir + 360) % 360;
+            let relSw = (stern - w.swDir + 360) % 360;
+            let relCurr = (stern - w.cDir + 360) % 360;
+            
+            let minLimSea = 999; let culpritSea = '';
+            let minLimSw = 999; let culpritSw = '';
+            
+            (activeOp.refs || []).forEach(ref => {
+                if (!ref || ref === 'NONE') return;
+                let lSea = getLimit(ref, w.seaTp, relSea);
+                let lSw  = getLimit(ref, w.swTp, relSw);
+                if (lSea !== null && lSea < minLimSea) { minLimSea = lSea; culpritSea = ref.replace(/_/g, ' '); }
+                if (lSw  !== null && lSw  < minLimSw)  { minLimSw = lSw;   culpritSw = ref.replace(/_/g, ' '); }
+            });
+
+            let isFailed = false;
+            let seaBg = "transparent", swBg = "transparent", wBg = "transparent", cBg = "transparent";
+            let seaNote = "", swNote = "", wNote = "", cNote = "";
+
+            if (minLimSea !== 999 && w.seaHs > minLimSea) { isFailed = true; seaBg = "#fef2f2"; seaNote += `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">EXCEEDED: ${culpritSea} (Lim: ${minLimSea.toFixed(1)}m)</span>`; }
+            if (minLimSw !== 999 && w.swHs > minLimSw) { isFailed = true; swBg = "#fef2f2"; swNote += `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">EXCEEDED: ${culpritSw} (Lim: ${minLimSw.toFixed(1)}m)</span>`; }
+            if (activeOp.hasWaveLimit && w.seaHs > activeOp.maxHs) { isFailed = true; seaBg = "#fef2f2"; seaNote += `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">GLOBAL LIMIT: ${w.seaHs.toFixed(1)}m > ${activeOp.maxHs.toFixed(1)}m</span>`; }
+
+            let geoCheck = checkGeographicLimit(activeOp, w);
+            geoCheck.alertList.forEach(alert => {
+                if (!alert.isWarning) {
+                    isFailed = true;
+                    if (alert.type === 'WIND') { wBg = "#fef2f2"; wNote += `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">SECTOR LIMIT: ${w.wSpd.toFixed(1)}k > ${activeOp.limVal}k</span>`; }
+                    if (alert.type === 'CURR') { cBg = "#fef2f2"; cNote += `<br><span style="font-size:0.6rem; color:#dc2626; font-weight:bold;">SECTOR LIMIT: ${w.cSpd.toFixed(1)}k > ${activeOp.limVal}k</span>`; }
+                }
+            });
+
+            let statusColor = isFailed ? '#dc2626' : '#10b981';
+            let gradient = getHeatmapGradient(activeOp, w);
+            let hdgText = activeOp.hdgMode === "0" ? `Strict Lock: ${activeOp.fixedHdg}°` : `Target: ${activeOp.fixedHdg}° (±${activeOp.hdgMode}°)`;
+            let dirLabel = activeOp.limDir === 'ALL' ? 'ALL' : `${activeOp.limDir}°`;
+            let limText = activeOp.hasLim ? `${activeOp.limType} max ${activeOp.limVal.toFixed(1)} <br><span style="color:#64748b; font-size:0.65rem;">(Dir: ${dirLabel} ±${activeOp.limTol}°)</span>` : "None";
+            if (activeOp.hasWaveLimit) limText += `<br><span style="color:#10b981; font-size:0.65rem;">Max Hs: ${activeOp.maxHs}m</span>`;
+            
+            let refsText = (activeOp.refs || ['—']).join('<br><span style="color:#64748b;">+ ').replace(/_/g, ' ');
+            let wC = getLabelCoords(w.wDir, 270);
+            let seaC = getLabelCoords(w.seaDir, 270);
+            let swC = getLabelCoords(w.swDir, 270);
+            let cC = getLabelCoords(w.cDir, 270);
+
+            let radarHTML = `
+            <div style="position:relative; width:130px; height:130px;">
+                <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:#ffffff; border-radius:50%; border:1px solid #cbd5e1;"></div>
+                <div style="position:absolute; top:0; left:0; width:100%; height:100%; background: ${gradient}; -webkit-mask: radial-gradient(transparent 58%, black 65%); mask: radial-gradient(transparent 58%, black 65%); opacity: 0.75; border-radius:50%;"></div>
+                <svg viewBox="-150 -150 800 800" style="position:absolute; top:-38%; left:-38%; width:176%; height:176%; pointer-events:none; overflow:visible;">
+                    <circle cx="250" cy="250" r="210" fill="none" stroke="#94a3b8" stroke-width="2"/>
+                    <circle cx="250" cy="250" r="140" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,4"/>
+                    <g transform="rotate(${w.wDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#ef4444"/></g>
+                    <text x="${wC.x}" y="${wC.y}" fill="#ef4444" class="radar-text" text-anchor="middle" dominant-baseline="middle">${w.wSpd.toFixed(1)}k</text>
+                    <g transform="rotate(${w.seaDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#0ea5e9"/></g>
+                    <text x="${seaC.x}" y="${seaC.y}" fill="#0ea5e9" class="radar-text" text-anchor="middle" dominant-baseline="middle">${w.seaHs.toFixed(1)}m</text>
+                    <g transform="rotate(${w.swDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#6366f1"/></g>
+                    <text x="${swC.x}" y="${swC.y}" fill="#6366f1" class="radar-text" text-anchor="middle" dominant-baseline="middle">${w.swHs.toFixed(1)}m</text>
+                    <g transform="rotate(${w.cDir}, 250, 250)"><polygon points="235,0 265,0 250,38 250,15" fill="#d946ef"/></g>
+                    <text x="${cC.x}" y="${cC.y}" fill="#d946ef" class="radar-text" text-anchor="middle" dominant-baseline="middle">${w.cSpd.toFixed(1)}k</text>
+                    <g transform="rotate(${bestHdg}, 250, 250)">
+                        <polygon points="235,390 235,170 250,120 265,170 265,390" fill="none" stroke="#1e293b" stroke-width="4"/>
+                        <circle cx="250" cy="250" r="4" fill="#1e293b"/>
+                    </g>
+                </svg>
+            </div>`;
+
+            html += `
+            <div style="display:flex; border:1px solid #cbd5e1; border-left:8px solid ${statusColor}; background:#ffffff; margin-bottom:12px; page-break-inside:avoid; overflow:hidden;">
+                <div style="width:200px; padding:10px 15px; display:flex; justify-content:center; align-items:center; border-right:1px solid #e2e8f0;">${radarHTML}</div>
+                <div style="flex:1; padding:10px 20px; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; table-layout:fixed;">
+                        <tr>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Task & Timeline</th>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Analysis Data</th>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Heading Limit & Actual</th>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#475569; font-weight:700; width:25%;">Vessel Limit</th>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top;">
+                                <strong style="color:#0284c7; display:block;">${activeOp.label}</strong>
+                                <span style="font-weight:700; color:#475569;">T+${seg.pStart.toFixed(1)} ➔ T+${seg.pEnd.toFixed(1)}</span><br>
+                                <span style="color:#64748b; font-size:0.65rem;">${formatTime(seg.pStart)} ➔ ${formatTime(seg.pEnd)}</span>
+                            </td>
+                            <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top;">${refsText}</td>
+                            <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top;">
+                                ${hdgText}<br>
+                                <strong style="color:${statusColor};">ACTUAL: ${Math.round(bestHdg).toString().padStart(3,'0')}°</strong>
+                            </td>
+                            <td style="padding:6px; border:1px solid #cbd5e1; vertical-align:top;">${limText}</td>
+                        </tr>
+                    </table>
+                    <table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left; table-layout:fixed;">
+                        <tr>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#ef4444; font-weight:800; width:25%;">WIND</th>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#0ea5e9; font-weight:800; width:25%;">SEA</th>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#6366f1; font-weight:800; width:25%;">SWELL</th>
+                            <th style="padding:4px 6px; border:1px solid #cbd5e1; background:#f1f5f9; color:#d946ef; font-weight:800; width:25%;">CURR</th>
+                        </tr>
+                        <tr>
+                            <td style="padding:6px; border:1px solid #cbd5e1; background:${wBg};">${w.wDir}° [R:${Math.round(relWind)}°] / ${w.wSpd.toFixed(1)}k ${wNote}</td>
+                            <td style="padding:6px; border:1px solid #cbd5e1; background:${seaBg};">${w.seaDir}° [R:${Math.round(relSea)}°] / ${w.seaHs.toFixed(1)}m ${seaNote}</td>
+                            <td style="padding:6px; border:1px solid #cbd5e1; background:${swBg};">${w.swDir}° [R:${Math.round(relSw)}°] / ${w.swHs.toFixed(1)}m ${swNote}</td>
+                            <td style="padding:6px; border:1px solid #cbd5e1; background:${cBg};">${w.cDir}° [R:${Math.round(relCurr)}°] / ${w.cSpd.toFixed(1)}k ${cNote}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>`;
+        });
+    }
+    $('print-view').innerHTML = html;
+    window.print();
+    } catch(e) {
+        console.error('printPlan error:', e);
+        alert('Print error — check console: ' + e.message);
+    }
+}
+
+			// 8. Simulation & UI Logic
+			function toggleSimSpeed() {
+				simSpeed = simSpeed === 1.0 ? 0.5 : 1.0;
+				const btn = $('btn-sim-speed'); btn.innerText = simSpeed.toFixed(1) + 'x SPD';
+				btn.style.borderColor = simSpeed === 1.0 ? '#94a3b8' : 'var(--accent)'; btn.style.color = simSpeed === 1.0 ? '#94a3b8' : 'var(--accent)';
+			}
+
+			function toggleSimLoop() {
+				simLoop = !simLoop;
+				const btn = $('btn-sim-loop'); btn.innerText = simLoop ? '🔁 LOOP: ON' : '➡️ LOOP: OFF';
+				btn.style.borderColor = simLoop ? 'var(--safe)' : '#94a3b8'; btn.style.color = simLoop ? 'var(--safe)' : '#94a3b8';
+			}
+			
+
+			function getInterpolatedWx(t) {
+				if (!state.wx || state.wx.length === 0) return getCurrentWxData();
+				let curIdx = state.wx.findIndex(w => t >= w.start && t < w.end);
+				if (curIdx === -1) return state.wx[state.wx.length-1]; 
+				
+				let w1 = state.wx[curIdx]; let w2 = state.wx[curIdx + 1];
+				if (!w2) return w1; 
+
+				let p = (t - w1.start) / (w1.end - w1.start);
+				const lerp = (a, b, t) => a + (b - a) * t;
+				const lerpDeg = (a, b, t) => {
+					let d = b - a; if (d > 180) d -= 360; if (d < -180) d += 360; return (a + d * t + 360) % 360;
+				};
+
+				return {
+					wDir: lerpDeg(w1.wDir, w2.wDir, p), wSpd: lerp(w1.wSpd, w2.wSpd, p),
+					seaDir: lerpDeg(w1.seaDir, w2.seaDir, p), seaHs: lerp(w1.seaHs, w2.seaHs, p), seaTp: lerp(w1.seaTp, w2.seaTp, p),
+					swDir: lerpDeg(w1.swDir, w2.swDir, p), swHs: lerp(w1.swHs, w2.swHs, p), swTp: lerp(w1.swTp, w2.swTp, p),
+					cDir: lerpDeg(w1.cDir, w2.cDir, p), cSpd: lerp(w1.cSpd, w2.cSpd, p)
+				};
+			}
+
+			function toggleSim() {
+		const btn = $('btn-sim');
+		hdgOverride = false;
+
+		// 1. Intersection Logic: Find where to loop back
+		let opsEnd = state.ops.length ? state.ops[state.ops.length - 1].end : 0;
+		let wxEnd = state.wx.length ? state.wx[state.wx.length - 1].end : 0;
+
+		let actualEnd = 24; 
+		if (opsEnd > 0 && wxEnd > 0) {
+			actualEnd = Math.min(opsEnd, wxEnd); // Loop when the first track finishes
+		} else if (opsEnd > 0 || wxEnd > 0) {
+			actualEnd = Math.max(opsEnd, wxEnd); // Fallback if only one has data
+		}
+		
+		if (!simTimer && state.t >= actualEnd) {
+			// Reset to effective start — end of last completed task, or 0
+			const lastDone = [...state.ops].reverse().find(o => o.completed);
+			state.t = lastDone ? lastDone.end : 0;
+		}
+
+		if (simTimer) {
+			// STOP SIMULATION
+			clearInterval(simTimer); simTimer = null;
+			btn.innerHTML = "▶ RUN SIMULATION";
+			btn.style.borderColor = "var(--safe)"; btn.style.color = "var(--safe)";
+			updateUI(); 
+		} else {
+			// START SIMULATION
+			btn.innerHTML = "⏸ PAUSE";
+			btn.style.borderColor = "var(--warn)"; btn.style.color = "var(--warn)";
+			
+			let justReset = false;
+
+			simTimer = setInterval(() => {
+				if (actualEnd <= 0) return;
+				state.t += (0.05 * simSpeed); 
+				
+				// Loop logic inside the timer
+				if (state.t > actualEnd) {
+					if (simLoop) {
+						// Reset to end of last completed task, not t=0
+						const _loopStart = (() => { const d = [...state.ops].reverse().find(o => o.completed); return d ? d.end : 0; })();
+						state.t = _loopStart;
+						justReset = true; 
+					} else { 
+						state.t = actualEnd; 
+						toggleSim(); // Turns off timer
+						return; 
+					}
+				}
+				
+				let curOp = state.ops.find(o => !o.completed && state.t >= o.start && state.t < o.end);
+				let wx = getInterpolatedWx(state.t);
+				
+				if (!draggingType) {
+					let targetHdg = state.hdg;
+
+					if (curOp) {
+						targetHdg = getOptimalHdg(curOp, wx);
+					} else {
+						let rad = Math.PI / 180;
+						let nX = ((wx.wSpd/20) * Math.sin((wx.wDir+180)*rad)) + ((wx.cSpd/1.5) * Math.sin((wx.cDir+180)*rad)) + ((wx.seaHs/2) * Math.sin((wx.seaDir+180)*rad)) + ((wx.swHs/2) * Math.sin((wx.swDir+180)*rad));
+						let nY = ((wx.wSpd/20) * Math.cos((wx.wDir+180)*rad)) + ((wx.cSpd/1.5) * Math.cos((wx.cDir+180)*rad)) + ((wx.seaHs/2) * Math.cos((wx.seaDir+180)*rad)) + ((wx.swHs/2) * Math.cos((wx.swDir+180)*rad));
+						let pushDir = Math.atan2(nX, nY) * (180/Math.PI);
+						targetHdg = (pushDir + 360) % 360; 
+					}
+					
+					let diff = targetHdg - state.hdg;
+					if(diff > 180) diff -= 360; if(diff < -180) diff += 360;
+					
+					if (justReset) {
+						state.hdg = targetHdg;
+						justReset = false;
+					} else {
+						state.hdg = (state.hdg + (diff * (0.08 * simSpeed)) + 360) % 360; 
+					}
+				}
+				updateUI();
+			}, 40); 
+		}
+	}
+
+			function scrub(e) {
+    isScrubbing = true;
+    hdgOverride = false;
+    
+    const move = (e) => {
+        const r = $('tr-op').getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        // Map position to remaining window (after last completed task)
+        const lastDone = [...state.ops].reverse().find(o => o.completed);
+        const windowStart = lastDone ? lastDone.end : 0;
+        const windowEnd   = state.t_pop;
+        state.t = windowStart + pct * (windowEnd - windowStart);
+        state.t = Math.max(windowStart, Math.min(windowEnd, state.t));
+        
+        // 1. REBUILD THE UI FIRST
+        updateUI(); 
+        
+        // 2. WAIT 10ms FOR THE HTML TO BE DRAWN, THEN SCROLL ACTIVE CARD INTO VIEW
+        setTimeout(() => {
+            let activeOpIndex = state.ops.findIndex(o => !o.completed && state.t >= o.start && state.t < o.end);
+            if (activeOpIndex !== -1) {
+                let card = document.getElementById(`op-card-${activeOpIndex}`);
+                if (card) card.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+        }, 10); 
+    };
+    
+    move(e); 
+    window.onmousemove = move; 
+    window.onmouseup = () => { window.onmousemove = null; isScrubbing = false; };
+}
+
+			// 9. Operations & Wx Add/Edit Logic
+			function addPhase() {
+				const sel1 = $('op-sel'); const sel2 = $('op-sel-2');
+				const _glAny = ['gl-wind-chk','gl-wave-chk','gl-curr-chk','gl-temp-chk']
+					.some(id => $( id)?.checked);
+				if (sel1.value === "NONE" && !$('op-has-limit').checked && !_glAny) {
+					alert("Please select Analysis Data, enable a Global Wx Limit, or add a Vessel Weather Limit.");
+					return;
+				}
+				
+							// If the library hasn't loaded and they haven't explicitly chosen NO MATRIX
+				if (sel1.options[sel1.selectedIndex].text.includes("Awaiting")) {
+					alert("⚠️ System is still loading Analysis Data. Please wait a moment or select 'NO MATRIX' to proceed manually.");
+					return;
+				}
+				
+				// Decoupled task naming logic with smart fallback
+				let customName = '';
+				if($('op-name')) customName = $('op-name').value.trim();
+				// If the user leaves the name blank, default to the Analysis Name!
+				const finalLabel = customName !== "" ? customName : sel1.options[sel1.selectedIndex].text;
+				
+				const refs = [sel1.value]; if (sel2 && sel2.value !== 'NONE') refs.push(sel2.value);
+				const start = state.ops.length ? state.ops[state.ops.length-1].end : 0;
+				
+				// CRITICAL FIX: ALL properties restored + Global Hs Limit Added
+				const parsedLimVal = parseFloat($('op-lim-val').value);
+				if ($('op-has-limit').checked && (!parsedLimVal || parsedLimVal <= 0)) {
+					alert("⚠️ Vessel Weather Limit is enabled but the limit value is 0 or empty. Please enter a valid limit.");
+					return;
+				}
+				state.ops.push({ 
+		label: finalLabel, 
+		refs: refs,
+		start: start, 
+		end: start + (parseFloat($('op-dur').value) || 0), 
+		hdgMode: $('op-hdg-mode').value, 
+		fixedHdg: (parseInt($('op-fixed-hdg').value) || 0),
+		
+		hasWaveLimit: false, maxHs: 2.5, // deprecated — use global limits
+
+		hasLim: $('op-has-limit').checked, 
+		limType: $('op-lim-type').value, 
+		limVal: parsedLimVal || 20,
+		limDir: parseInt($('op-lim-dir').value) || 0, 
+		limTol: parseInt($('op-lim-tol').value) || 90
+	});
+				
+				sync(); 
+				
+				// 1. Reset Task Name and Duration
+		if($('op-name')) $('op-name').value = ''; 
+		$('op-dur').value = 4; // Or your preferred default duration
+
+		// 2. Reset Global Hs Limit to OFF
+		// hasWaveLimit removed — global limits used instead
+		// op-wave-wrap removed
+		$('op-max-hs').value = 2.5;
+
+		// 3. Reset Vessel Weather Limit to OFF
+		$('op-has-limit').checked = false;
+		$('op-lim-wrap').style.display = 'none';
+		$('op-lim-val').value = 20;
+		
+		// 4. Reset Heading defaults
+		$('op-hdg-mode').value = '90';
+		$('op-fixed-hdg').value = 0;
+
+		// 5. Move focus back to the name for the next entry
+		if($('op-name')) $('op-name').focus();
+	}
+
+			function addWx() {
+				const start = state.wx.length ? state.wx[state.wx.length-1].end : 0;
+				state.wx.push({
+					start, end: start + (parseFloat($('wx-dur').value) || 0),
+					wDir: parseInt($('w-dir').value)||0, wSpd: parseFloat($('w-spd').value)||0,
+					seaDir: parseInt($('sea-dir').value)||0, seaHs: parseFloat($('sea-hs').value)||0, seaTp: parseFloat($('sea-tp').value)||0,
+					swDir: parseInt($('sw-dir').value)||0, swHs: parseFloat($('sw-hs').value)||0, swTp: parseFloat($('sw-tp').value)||0,
+					cDir: parseInt($('c-dir').value)||0, cSpd: parseFloat($('c-spd').value)||0
+				});
+				sync();
+			}
+
+			function resetOps() { state.ops = []; state.t = 0; sync(); }
+			function resetWx() { state.wx = []; state.tide = [];
+			if ($('svg-tide')) $('svg-tide').innerHTML = ''; 
+			sync(); }
+
+			function openOpEdit(i) {
+		state.editOpIdx = i; 
+		closeOverlays(); 
+		const p = state.ops[i];
+
+		// Standard Fields
+		$('ed-op-name').value = p.label; 
+		$('ed-op-dur').value = p.end - p.start;
+		$('ed-op-sel').value = p.refs[0]; 
+		$('ed-op-sel-2').value = (p.refs && p.refs.length > 1) ? p.refs[1] : 'NONE';
+		$('ed-op-hdg-mode').value = p.hdgMode || '45';
+		$('ed-op-hdg').value = p.fixedHdg || 0; 
+
+		// Global Hs limit state (deprecated per-op field — ed-op-max-hs removed)
+		const _maxHsEl = $('ed-op-max-hs');
+		if (_maxHsEl) _maxHsEl.value = p.maxHs || 2.5;
+
+		// Loading Vessel Weather Limit State
+		$('ed-op-has-limit').checked = p.hasLim; 
+		$('ed-op-lim-wrap').style.display = p.hasLim ? 'block' : 'none';
+		$('ed-op-lim-type').value = p.limType || 'WIND'; 
+		
+		if($('ed-op-lim-dir')) $('ed-op-lim-dir').value = p.limDir || 0; 
+		if($('ed-op-lim-tol')) $('ed-op-lim-tol').value = p.limTol || 90;
+		$('ed-op-lim-val').value = p.limVal || 0;
+
+		// Update complete button label
+		const btn = $('complete-op-btn');
+		if (btn) {
+			if (p.completed) {
+				btn.textContent = '↺ Restore Task';
+				btn.style.background = 'rgba(0,232,135,0.15)';
+				btn.style.color      = 'var(--safe)';
+				btn.style.border     = '1px solid var(--safe)';
+			} else {
+				btn.textContent = '✓ Mark Complete';
+				btn.style.background = 'var(--border)';
+				btn.style.color      = 'var(--muted3)';
+				btn.style.border     = '';
+			}
+		}
+
+		// Open the panel
+		$('op-edit-panel').classList.add('active');
+		updateUI(); 
+	}
+
+			function toggleOpComplete() {
+				const p = state.ops[state.editOpIdx];
+				if (!p) return;
+				p.completed = !p.completed;
+
+				if (p.completed) {
+					// Advance playhead to end of last completed task
+					const lastDone = [...state.ops].reverse().find(o => o.completed);
+					if (lastDone && lastDone.end > state.t) state.t = lastDone.end;
+					// Prompt re-run so weather aligns to new effective start
+					const note = $('wx-note');
+					if (note) {
+						note.textContent = '⚠ Task completed — re-run analysis to update forecast';
+						note.style.color = 'var(--warn)';
+					}
+					// Show re-run badge on mission start area
+					const badge = $('mission-change-badge');
+					if (badge) badge.style.display = 'inline-flex';
+					const msw = $('mission-start-wrap');
+					if (msw) msw.classList.add('stale');
+				} else {
+					// Restored — check if any tasks still completed
+					const anyDone = state.ops.some(o => o.completed);
+					if (!anyDone) dismissMissionChangePill();
+				}
+
+				closeOverlays();
+				sync();
+			}
+
+			function openWxEdit(i) {
+				state.editWxIdx = i; closeOverlays(); state.isEditWxOpen = true; const w = state.wx[i];
+				$('ed-wx-dur').value = w.end - w.start; $('ed-w-dir').value = w.wDir; $('ed-w-spd').value = w.wSpd;
+				$('ed-sea-dir').value = w.seaDir; $('ed-sea-hs').value = w.seaHs; $('ed-sea-tp').value = w.seaTp;
+				$('ed-sw-dir').value = w.swDir; $('ed-sw-hs').value = w.swHs; $('ed-sw-tp').value = w.swTp;
+				$('ed-c-dir').value = w.cDir; $('ed-c-spd').value = w.cSpd;
+				$('wx-edit-panel').classList.add('active');
+			}
+
+			function deleteOp() {
+				if(!confirm("Delete this task?")) return;
+				state.ops.splice(state.editOpIdx, 1);
+				// Rebuild timeline from durations to avoid gaps from non-contiguous edits
+				let cursor = 0;
+				state.ops.forEach(o => {
+					let dur = o.end - o.start;
+					o.start = cursor;
+					o.end = cursor + dur;
+					cursor = o.end;
+				});
+				closeOverlays(); sync();
+			}
+
+			function deleteWx() {
+				if(!confirm("Delete this forecast block?")) return;
+				state.wx.splice(state.editWxIdx, 1);
+				// Rebuild timeline from durations to avoid gaps from non-contiguous edits
+				let cursor = 0;
+				state.wx.forEach(w => {
+					let dur = w.end - w.start;
+					w.start = cursor;
+					w.end = cursor + dur;
+					cursor = w.end;
+				});
+				closeOverlays(); sync();
+			}
+			
+			function saveOpEdit() {
+		const p = state.ops[state.editOpIdx];
+		
+		// 1. Capture all the data from the inputs (Same as before)
+		p.label = $('ed-op-name').value || $('ed-op-sel').options[$('ed-op-sel').selectedIndex].text; 
+		p.hdgMode = $('ed-op-hdg-mode').value; 
+		p.fixedHdg = parseInt($('ed-op-hdg').value) || 0; 
+		p.hasWaveLimit = false; // deprecated
+		p.maxHs = parseFloat($('ed-op-max-hs').value) || 2.5;
+		p.hasLim = $('ed-op-has-limit').checked; 
+		p.limType = $('ed-op-lim-type').value; 
+		p.limDir = parseInt($('ed-op-lim-dir').value) || 0; 
+		p.limTol = parseInt($('ed-op-lim-tol').value) || 90;
+		p.limVal = parseFloat($('ed-op-lim-val').value) || 0;
+		
+		const sel1 = $('ed-op-sel').value;
+		const sel2 = $('ed-op-sel-2').value; 
+		p.refs = sel2 === 'NONE' ? [sel1] : [sel1, sel2];
+		p.end = p.start + (parseFloat($('ed-op-dur').value) || 0);
+		
+		// 2. Adjust timeline for subsequent tasks
+		for(let j=state.editOpIdx+1; j<state.ops.length; j++) {
+			const d = state.ops[j].end - state.ops[j].start; 
+			state.ops[j].start = state.ops[j-1].end; 
+			state.ops[j].end = state.ops[j].start + d;
+		}
+
+		// 3. --- THE SNAP FIX ---
+		// First, clear any flags that might block the snapping logic in updateUI
+		hdgOverride = false; 
+		
+		// Second, close the panel immediately
+		$('op-edit-panel').classList.remove('active'); 
+		
+		// Third, force a recalculation of the vessel heading right here
+		const wx = getInterpolatedWx(state.t);
+		if (p.hdgMode === "0") {
+			state.hdg = p.fixedHdg;
+		} else {
+			state.hdg = getOptimalHdg(p, wx);
+		}
+
+		// 4. Final Refresh
+		sync();
+		updateUI();
+	}
+
+			function saveWxEdit() {
+				const w = state.wx[state.editWxIdx]; w.end = w.start + (parseFloat($('ed-wx-dur').value) || 0);
+				w.wDir = parseInt($('ed-w-dir').value)||0; w.wSpd = parseFloat($('ed-w-spd').value)||0;
+				w.seaDir = parseInt($('ed-sea-dir').value)||0; w.seaHs = parseFloat($('ed-sea-hs').value)||0; w.seaTp = parseFloat($('ed-sea-tp').value)||0;
+				w.swDir = parseInt($('ed-sw-dir').value)||0; w.swHs = parseFloat($('ed-sw-hs').value)||0; w.swTp = parseFloat($('ed-sw-tp').value)||0;
+				w.cDir = parseInt($('ed-c-dir').value)||0; w.cSpd = parseFloat($('ed-c-spd').value)||0;
+				for(let j=state.editWxIdx+1; j<state.wx.length; j++) {
+					const d = state.wx[j].end - state.wx[j].start; state.wx[j].start = state.wx[j-1].end; state.wx[j].end = state.wx[j].start + d;
+				}
+				closeOverlays(); sync();
+				updateUI();
+			}
+
+			function closeOverlays() { 
+				$('op-edit-panel').classList.remove('active'); $('wx-edit-panel').classList.remove('active'); 
+				state.isEditWxOpen = false; updateUI(); 
+			}
+		
+
+	// 10. Sync, UI, and Event Listeners
+	function sync() {
+		const maxOp = state.ops.length ? state.ops[state.ops.length - 1].end : 0;
+		const maxWx = state.wx.length ? state.wx[state.wx.length - 1].end : 0;
+		state.t_pop = Math.max(24, maxOp, maxWx);
+		// If current time is inside a completed op, advance to next incomplete
+		const firstActive = state.ops.find(o => !o.completed && o.end > state.t);
+		const allDone     = state.ops.length && state.ops.every(o => o.completed);
+		if (!allDone) {
+			const inCompleted = state.ops.find(o => o.completed && state.t >= o.start && state.t < o.end);
+			if (inCompleted) {
+				const nextOp = state.ops.find(o => !o.completed && o.start >= inCompleted.end);
+				if (nextOp) state.t = nextOp.start;
+			}
+		}
+		let opScrollParent = $('cont-op').parentElement;
+		let savedScroll = opScrollParent ? opScrollParent.scrollLeft : 0;
+
+		// 1. UPDATE MISSION SEQUENCE HUD (Left Sidebar)
+		// Double-click any card to edit — this is the sole edit entry point
+		$('op-list').innerHTML = state.ops.map((o, i) => {
+			if (o.completed) {
+				// Completed — greyed, strikethrough, double-click to restore
+				return `<div id="op-card-${i}"
+					ondblclick="openOpEdit(${i})"
+					onmouseenter="this.style.opacity='0.7'; this.style.borderLeftColor='var(--accent)'"
+					onmouseleave="this.style.opacity='0.45'; this.style.borderLeftColor='#334155'"
+					title="Double-click to edit or restore"
+					style="padding:6px 8px; background:rgba(0,0,0,0.2); border-radius:4px; margin-bottom:4px;
+					       border-left:4px solid #334155; opacity:0.45; cursor:pointer; user-select:none; transition:opacity 0.15s, border-color 0.15s;">
+					<span style="color:#4a6080; font-size:0.65rem; text-decoration:line-through;">✓ ${o.label || 'Task ' + (i+1)}</span>
+					<span style="color:#334155; font-size:0.55rem; font-family:monospace; margin-left:6px;">${(o.end-o.start).toFixed(1)}h</span>
+					<span style="color:#4a6080; font-size:0.5rem; margin-left:6px; font-style:italic;">dbl-click to edit</span>
+				</div>`;
+			}
+
+			// Active task — full card with badges
+			let tol = parseInt(o.hdgMode); if (isNaN(tol)) tol = 0;
+			const hBadge = tol === 0
+				? `<br><span id="op-hdg-badge-${i}" style="color:var(--safe); font-size:0.6rem;">↳ 🔒 STRICT LOCK: ${o.fixedHdg}°</span>`
+				: `<br><span id="op-hdg-badge-${i}" style="color:var(--accent); font-size:0.6rem;">↳ ⚓ TGT: ${o.fixedHdg}° (±${tol}°)</span>`;
+			const waveBadge   = o.hasWaveLimit ? `<br><span style="color:var(--safe);   font-size:0.6rem;">↳ 🌊 MAX HS: ${o.maxHs.toFixed(1)}m</span>` : '';
+			const sectorBadge = o.hasLim       ? `<br><span style="color:var(--danger); font-size:0.6rem;">↳ 🚩 ${o.limType}: ${o.limVal}${o.limType==='WIND'?'k':'k'} (${o.limDir}° ±${o.limTol}°)</span>` : '';
+			const ref2Badge   = o.refs && o.refs.length > 1 ? `<br><span style="color:#cbd5e1; font-size:0.6rem;">↳ + ${o.refs[1].replace(/_/g,' ')}</span>` : '';
+
+			return `<div id="op-card-${i}"
+				ondblclick="openOpEdit(${i})"
+				title="Double-click to edit"
+				style="padding:6px 8px; background:rgba(0,0,0,0.5); border-radius:4px; margin-bottom:4px;
+				       border-left:4px solid transparent; transition:0.2s; cursor:pointer; user-select:none;">
+				🚢 ${o.label} <span style="opacity:0.5; font-family:monospace; margin-left:4px;">${(o.end-o.start).toFixed(1)}h</span>
+				${ref2Badge}${waveBadge}${sectorBadge}${hBadge}
+			</div>`;
+		}).join('');
+
+		// 2 & 3. TIMELINE TRACKS
+		// Both tracks show only what's ahead — completed time removed from both
+		const _lastCompletedEnd = (() => {
+			const done = state.ops.filter(o => o.completed);
+			return done.length ? Math.max(...done.map(o => o.end)) : 0;
+		})();
+
+		// Remaining ops and wx after completed boundary
+		const _opsRemaining = state.ops.filter(d => !d.completed);
+		const _wxRemaining  = _lastCompletedEnd > 0 ? state.wx.filter(d => d.end > _lastCompletedEnd) : state.wx;
+
+		// Shared denominator = remaining time window (both tracks fill it together)
+		const _remainingOpsEnd = _opsRemaining.length ? _opsRemaining[_opsRemaining.length - 1].end : 0;
+		const _remainingWxEnd  = _wxRemaining.length  ? _wxRemaining[_wxRemaining.length - 1].end   : 0;
+		const _trackEnd  = Math.max(_remainingOpsEnd, _remainingWxEnd, _lastCompletedEnd + 1);
+		const _trackSpan = _trackEnd - _lastCompletedEnd;
+
+		// 2. UPDATE OPERATIONAL TIMELINE TRACK
+		$('cont-op').innerHTML = _opsRemaining.map((d) => {
+				const dur     = d.end - d.start;
+				const pct     = (dur / _trackSpan) * 100;
+				let labelText = (d.label || 'Task').length > 15
+					? (d.label || 'Task').substring(0, 13) + '...'
+					: (d.label || 'Task');
+				const content = `<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%; line-height:1; overflow:hidden; padding:0 1px;">
+					<span style="font-size:0.55rem; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; width:100%; text-align:center; color:#cbd5e1; margin-bottom:1px; display:block;">${labelText}</span>
+					<span style="font-size:0.8rem; font-weight:900; color:#fff; white-space:nowrap;">${dur.toFixed(1)}H</span>
+				</div>`;
+				return `<div class="block op-block" style="width:${pct}%; padding:2px;">${content}</div>`;
+			}).join('');
+
+		// 3. UPDATE WEATHER TIMELINE TRACK — same remaining window, no spacer needed
+		$('cont-wx').innerHTML = _wxRemaining.map((d) => {
+			// Clip first block at the completed boundary
+			const dispStart = Math.max(d.start, _lastCompletedEnd);
+			const dispDur   = d.end - dispStart;
+			const pct       = (dispDur / _trackSpan) * 100;
+			let content = '';
+
+			if (pct > 5) {
+				content = `
+					<div style="display:flex; align-items:baseline; gap:4px; margin-bottom:2px;">
+						<span style="font-size:0.5rem; color:#bae6fd; text-transform:uppercase; font-weight:800;">Wx Period</span>
+						<span style="font-size:0.75rem; font-weight:950; color:#fff;">${dispDur.toFixed(1)}H</span>
+					</div>
+					<div style="display:grid; grid-template-columns: 1fr 1fr; gap:2px; width:100%; font-size:0.6rem; font-weight:900;">
+						<div style="background:rgba(239, 68, 68, 0.2); color:var(--c-wind); padding:1px; border-radius:2px; text-align:center;">${Math.round(d.wSpd)}k</div>
+						<div style="background:rgba(14, 165, 233, 0.2); color:var(--c-sea); padding:1px; border-radius:2px; text-align:center;">${d.seaHs.toFixed(1)}m</div>
+						<div style="background:rgba(99, 102, 241, 0.2); color:var(--c-swell); padding:1px; border-radius:2px; text-align:center;">${d.swHs.toFixed(1)}m</div>
+						<div style="background:rgba(217, 70, 239, 0.2); color:var(--c-curr); padding:1px; border-radius:2px; text-align:center;">${d.cSpd.toFixed(1)}k</div>
+					</div>`;
+			} else if (pct > 2.5) {
+				content = `
+					<div style="font-size:0.65rem; font-weight:950; color:#fff; margin-bottom:2px;">${dispDur.toFixed(0)}H</div>
+					<div style="display:flex; flex-direction:column; gap:1px; width:100%; font-size:0.55rem; font-weight:900; line-height:1;">
+						<div style="color:var(--c-wind); text-align:center;">${Math.round(d.wSpd)}k</div>
+						<div style="color:var(--c-sea); text-align:center;">${d.seaHs.toFixed(1)}m</div>
+					</div>`;
+			} else {
+				content = `<div style="font-size:0.5rem; font-weight:950; color:#fff;">${dispDur.toFixed(0)}H</div>`;
+			}
+
+			return `
+				<div class="block wx-block"  style="width:${pct}%; padding:2px; min-width:0; overflow:hidden;">
+				<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; height:100%;">
+					${content}
+				</div>
+			</div>`;
+		}).join('');
+		
+		// 4. FINALIZE UI
+		drawTideSparkline();
+		updateUI();
+
+		// FORCE SCROLL DELAY: Wait 10ms for the browser to render widths, then restore scroll
+		setTimeout(() => {
+			if (opScrollParent) {
+				opScrollParent.scrollLeft = savedScroll;
+				if($('cont-wx').parentElement !== opScrollParent) {
+					$('cont-wx').parentElement.scrollLeft = savedScroll;
+				}
+			}
+		}, 10);
+
+		// Forecast age warning
+		const wxNote = $('wx-note');
+		if (wxNote && state.wx.length && state.start) {
+			const ageHrs = (Date.now() - state.start.getTime()) / 3600000;
+			if (ageHrs > 48) {
+				wxNote.textContent = `⚠ ${Math.round(ageHrs)}h OLD — RE-ANALYSE`;
+				wxNote.style.color = 'var(--danger)';
+			} else if (ageHrs > 24) {
+				wxNote.textContent = `⚠ ${Math.round(ageHrs)}h OLD`;
+				wxNote.style.color = 'var(--warn)';
+			} else {
+				wxNote.textContent = '';
+			}
+		}
+		updateWxAgePill();
+	}
+				
+
+	// 11. DP Math and Main UI Updater
+	function updateDPVector(wx) {
+		if(!wx) return;
+		let fWind = (wx.wSpd / 20), fCurr = (wx.cSpd / 1.5), fSea = (wx.seaHs / 2), fSwell = (wx.swHs / 2);
+		let rad = Math.PI / 180;
+		let pushW = (wx.wDir + 180) % 360, pushC = (wx.cDir + 180) % 360, pushSea = (wx.seaDir + 180) % 360, pushSw = (wx.swDir + 180) % 360;
+
+		let netX = (fWind * Math.sin(pushW * rad)) + (fCurr * Math.sin(pushC * rad)) + (fSea * Math.sin(pushSea * rad)) + (fSwell * Math.sin(pushSw * rad));
+		let netY = (fWind * Math.cos(pushW * rad)) + (fCurr * Math.cos(pushC * rad)) + (fSea * Math.cos(pushSea * rad)) + (fSwell * Math.cos(pushSw * rad));
+
+		let mag = Math.sqrt(netX*netX + netY*netY);
+		let dir = Math.atan2(netX, netY) * (180 / Math.PI); if(dir < 0) dir += 360;
+
+		let scale = Math.min(2, Math.max(0.2, mag / 1.5)); let arrowLength = 25 * scale;
+		$('net-force-arrow').setAttribute('transform', `rotate(${dir})`);
+		$('net-force-line').setAttribute('y2', -arrowLength);
+		$('net-force-head').setAttribute('points', `-6,${-arrowLength} 6,${-arrowLength} 0,${-(arrowLength + 10)}`);
+
+		let forceLabel = mag < 0.8 ? 'LOW' : (mag < 1.6 ? 'MED' : 'HIGH');
+		let color = mag < 0.8 ? 'var(--safe)' : (mag < 1.6 ? 'var(--warn)' : 'var(--danger)');
+
+		$('net-force-line').setAttribute('stroke', color); $('net-force-head').setAttribute('fill', color);
+		$('dp-force-readout').innerHTML = `${Math.round(dir).toString().padStart(3,'0')}°<br><span style="font-size:0.7rem">${forceLabel} FORCE</span>`;
+		$('dp-force-readout').style.color = color;
+	}
+
+	function updateUI() {
+		// Playhead maps to remaining window (after last completed task) — same as track render
+		const _lastDone    = [...state.ops].reverse().find(o => o.completed);
+		const _winStart    = _lastDone ? _lastDone.end : 0;
+		const _winSpan     = Math.max(1, state.t_pop - _winStart);
+		const _tInWindow   = Math.max(0, state.t - _winStart);
+		const pos = (_tInWindow / _winSpan * 100) + '%';
+		$('ph-op').style.left = pos; $('ph-wx').style.left = pos;
+		
+		const h = Math.floor(state.t);
+		const m = Math.floor((state.t % 1) * 60);
+		
+		// 1. Calculate absolute dates
+		let pad = n => n.toString().padStart(2, '0');
+		let sDate = state.start || new Date(); 
+		let cDate = new Date(sDate.getTime() + (state.t * MS_PER_HOUR)); 
+
+		let sStr = `${pad(sDate.getDate())}/${pad(sDate.getMonth()+1)} ${pad(sDate.getHours())}:${pad(sDate.getMinutes())}`;
+		let cStr = `${pad(cDate.getDate())}/${pad(cDate.getMonth()+1)} ${pad(cDate.getHours())}:${pad(cDate.getMinutes())}`;
+
+		$('t-digital').innerHTML = `
+			<span style="color:var(--safe); font-size:1.1rem; font-weight:900; margin-right:15px; letter-spacing:1px;">▶ START: ${sStr}</span>
+			<span style="color:#fff; font-size:1.1rem; margin-right:15px;">➔ ${cStr}</span>
+			<span style="color:var(--accent);">[ T+ ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')} ]</span>`;
+
+		// 2. PRE-CALCULATE WEATHER (Moved up so Snapping Logic can use it)
+		const activeWx = state.wx.length ? getInterpolatedWx(state.t) : getCurrentWxData();
+		let activeCurr = { cDir: activeWx.cDir || 0, cSpd: activeWx.cSpd || 0 };
+		if (state.curr && state.curr.length > 0) {
+			let currPoint = state.curr.find(c => state.t >= c.hour && state.t < c.hour + 1);
+			if (currPoint) activeCurr = currPoint;
+			else activeCurr = state.curr[state.curr.length - 1]; 
+		}
+		let mergedEnv = { ...activeWx, cDir: activeCurr.cDir, cSpd: activeCurr.cSpd };
+
+		// 3. HANDLE OPERATIONS & SNAPPING
+		const curOp = state.ops.find(o => !o.completed && state.t >= o.start && state.t < o.end);
+
+		// Highlight active card — skip completed cards entirely (they manage their own style)
+		state.ops.forEach((o, i) => {
+			if (o.completed) return; // leave completed card styling untouched
+			let el = $(`op-card-${i}`);
+			if (el) {
+				if (!o.completed && state.t >= o.start && state.t < o.end) {
+					el.style.borderLeftColor = 'var(--safe)';
+					el.style.background = 'rgba(16, 185, 129, 0.15)';
+				} else {
+					el.style.borderLeftColor = 'transparent';
+					el.style.background = 'rgba(0,0,0,0.5)';
+				}
+			}
+		});
+
+		const isEditingOp = $('op-edit-panel').classList.contains('active');
+		$('hdg-handle').style.display = 'block'; 
+
+		if(curOp) {
+			let tol = parseInt(curOp.hdgMode);
+			if (isNaN(tol)) tol = 0; 
+
+			// --- LIVE SNAPPING LOGIC ---
+			if (!simTimer && !draggingType && !isEditingOp && !hdgOverride) {
+				if (tol === 0) {
+					state.hdg = curOp.fixedHdg;
+				} else {
+					// Now mergedEnv is defined, so this won't crash!
+					state.hdg = getOptimalHdg(curOp, mergedEnv);
+				}
+			}
+			
+			$('vessel-padlock').style.display = (tol === 0) ? 'block' : 'none';
+		} else {
+			$('vessel-padlock').style.display = 'none';
+		}
+
+		// 4. UPDATE INPUTS & ARROWS
+		const baseWxBlock = state.wx.find(w => state.t >= w.start && state.t < w.end) || state.wx[0];
+		
+		if (baseWxBlock && (simTimer || isScrubbing) && !draggingType && !state.isEditWxOpen) {
+			$('w-dir').value = Math.round(mergedEnv.wDir); $('w-spd').value = mergedEnv.wSpd.toFixed(1);
+			$('sea-dir').value = Math.round(mergedEnv.seaDir); $('sea-hs').value = mergedEnv.seaHs.toFixed(1); $('sea-tp').value = mergedEnv.seaTp.toFixed(1);
+			$('sw-dir').value = Math.round(mergedEnv.swDir); $('sw-hs').value = mergedEnv.swHs.toFixed(1); $('sw-tp').value = mergedEnv.swTp.toFixed(1);
+			$('c-dir').value = Math.round(mergedEnv.cDir); $('c-spd').value = mergedEnv.cSpd.toFixed(1);
+		}
+
+		if (!draggingType) {
+			$('arr-wind').setAttribute('transform', `rotate(${mergedEnv.wDir}, 250, 250)`); 
+			$('arr-sea').setAttribute('transform', `rotate(${mergedEnv.seaDir}, 250, 250)`);
+			$('arr-swell').setAttribute('transform', `rotate(${mergedEnv.swDir}, 250, 250)`); 
+			$('arr-curr').setAttribute('transform', `rotate(${mergedEnv.cDir}, 250, 250)`);
+		}
+		
+		// 5. RE-RENDER PLOT & TOOLTIPS
+		updateDPVector(mergedEnv);
+		try { generateHeatmap(curOp, mergedEnv); } catch(e) { console.error(e); }
+		updatePlot();
+
+		let stern = (state.hdg + 180) % 360;
+		if (mergedEnv && $('arr-wind')) {
+			$('arr-wind').setAttribute('data-rel', Math.round((stern - mergedEnv.wDir + 360) % 360).toString().padStart(3, '0'));
+			$('arr-sea').setAttribute('data-rel', Math.round((stern - mergedEnv.seaDir + 360) % 360).toString().padStart(3, '0'));
+			$('arr-swell').setAttribute('data-rel', Math.round((stern - mergedEnv.swDir + 360) % 360).toString().padStart(3, '0'));
+			$('arr-curr').setAttribute('data-rel', Math.round((stern - mergedEnv.cDir + 360) % 360).toString().padStart(3, '0'));
+		}
+	}
+
+	function updatePlot() {
+		$('vessel-group').setAttribute('transform', `rotate(${state.hdg}, 250, 250)`);
+		
+		const isEditingOp = $('op-edit-panel').classList.contains('active');
+		const curOp = state.ops.find(o => !o.completed && state.t >= o.start && state.t < o.end);
+		
+		let activeTargetHdg = 0;
+		let activeTol = 0;
+
+		if (isEditingOp) {
+			activeTargetHdg = parseInt($('ed-op-hdg').value) || 0;
+			activeTol = parseInt($('ed-op-hdg-mode').value) || 0;
+		} else if (curOp) {
+			activeTargetHdg = curOp.fixedHdg;
+			activeTol = parseInt(curOp.hdgMode) || 0;
+		} else {
+			activeTargetHdg = parseInt($('op-fixed-hdg').value) || 0;
+			activeTol = parseInt($('op-hdg-mode').value) || 0;
+		}
+
+		const guideGroup = $('guidelines-group');
+		if (guideGroup) {
+			if (curOp || isEditingOp || $('op-fixed-hdg').value !== "") {
+				guideGroup.style.display = 'block'; 
+				guideGroup.setAttribute('transform', `rotate(${activeTargetHdg}, 250, 250)`);
+				
+				if (activeTol > 0 && activeTol < 180) { // Keep cone logic safe
+					$('tol-left').style.display = 'block';
+					$('tol-right').style.display = 'block';
+					$('tol-area').style.display = 'block';
+					$('tol-left').setAttribute('transform', `rotate(${-activeTol}, 250, 250)`);
+					$('tol-right').setAttribute('transform', `rotate(${activeTol}, 250, 250)`);
+					
+					let radL = (-activeTol - 90) * Math.PI / 180;
+					let radR = (activeTol - 90) * Math.PI / 180;
+					let x1 = 250 + 210 * Math.cos(radL);
+					let y1 = 250 + 210 * Math.sin(radL);
+					let x2 = 250 + 210 * Math.cos(radR);
+					let y2 = 250 + 210 * Math.sin(radR);
+					
+					let largeArc = (activeTol * 2) > 180 ? 1 : 0; // Fixes cone drawing for >90 deg
+					$('tol-area').setAttribute('d', `M250,250 L${x1},${y1} A210,210 0 ${largeArc},1 ${x2},${y2} Z`);
+				} else {
+					$('tol-left').style.display = 'none';
+					$('tol-right').style.display = 'none';
+					$('tol-area').style.display = 'none';
+				}
+			} else {
+				guideGroup.style.display = 'none';
+			}
+		}
+
+		const hdgHandle = $('hdg-handle');
+		if (simTimer) {
+			hdgHandle.style.display = 'none';
+		} else {
+			hdgHandle.style.display = 'block';
+			hdgHandle.setAttribute('transform', `rotate(${activeTargetHdg}, 250, 250)`);
+		}
+
+		const hdgText = $('hdg-readout');
+		hdgText.innerText = Math.round(state.hdg).toString().padStart(3, '0') + '°';
+
+		let tReadout = $('tgt-readout');
+		let tLower = $('tgt-lower');
+		let tUpper = $('tgt-upper');
+		
+		if (tReadout && tLower && tUpper) {
+			if (curOp || isEditingOp || $('op-fixed-hdg').value !== "") {
+				tReadout.innerText = activeTargetHdg.toString().padStart(3, '0') + '°';
+				if (activeTol > 0) {
+					tLower.innerText = ((activeTargetHdg - activeTol + 360) % 360).toString().padStart(3, '0') + '°';
+					tUpper.innerText = ((activeTargetHdg + activeTol) % 360).toString().padStart(3, '0') + '°';
+				} else {
+					tLower.innerText = '--';
+					tUpper.innerText = '--';
+				}
+			} else {
+				tReadout.innerText = '---°';
+				tLower.innerText = '--';
+				tUpper.innerText = '--';
+			}
+		}
+		
+		updateRelativeReadoutsFromInputs();
+	}
+
+
+			function updateRelativeReadoutsFromInputs() {
+				let pfx = state.isEditWxOpen ? 'ed-' : ''; const stern = (state.hdg + 180) % 360;
+				let w = parseFloat($(pfx + 'w-dir').value) || 0; let sea = parseFloat($(pfx + 'sea-dir').value) || 0;
+				let sw = parseFloat($(pfx + 'sw-dir').value) || 0; let c = parseFloat($(pfx + 'c-dir').value) || 0;
+				$('rel-wind').innerText = `REL: ${Math.round((stern - w + 360) % 360).toString().padStart(3,'0')}°`;
+				$('rel-sea').innerText = `REL: ${Math.round((stern - sea + 360) % 360).toString().padStart(3,'0')}°`;
+				$('rel-swell').innerText = `REL: ${Math.round((stern - sw + 360) % 360).toString().padStart(3,'0')}°`;
+				$('rel-curr').innerText = `REL: ${Math.round((stern - c + 360) % 360).toString().padStart(3,'0')}°`;
+			}
+
+			function getCurrentWxData() {
+				return {
+					wDir: parseInt($('w-dir').value)||0, wSpd: parseFloat($('w-spd').value)||0,
+					seaDir: parseInt($('sea-dir').value)||0, seaHs: parseFloat($('sea-hs').value)||0, seaTp: parseFloat($('sea-tp').value)||0,
+					swDir: parseInt($('sw-dir').value)||0, swHs: parseFloat($('sw-hs').value)||0, swTp: parseFloat($('sw-tp').value)||0,
+					cDir: parseInt($('c-dir').value)||0, cSpd: parseFloat($('c-spd').value)||0
+				};
+			}
+
+			// updateClock defined above with mission start prompt logic
+
+			// Event Listeners
+			document.addEventListener('focusin', (e) => { if (e.target.tagName === 'INPUT' && (e.target.type === 'number' || e.target.type === 'text')) e.target.select(); });
+			
+			document.querySelectorAll('.ent-jump').forEach(el => {
+				el.addEventListener('keydown', function(e) {
+					if(e.key === 'Enter') { 
+						e.preventDefault(); 
+						if (this.dataset.dragFocus === 'true') {
+							this.dataset.dragFocus = 'false';
+							this.blur();
+							if(state.isEditWxOpen) saveWxEdit();
+							return;
+						}
+						const nextId = this.getAttribute('data-next'); 
+						if(nextId && $(nextId)) { $(nextId).focus(); } else { this.blur(); if(state.isEditWxOpen) saveWxEdit(); } 
+					}
+				});
+			});
+
+			// Direction clamping helper - normalises any input to 0-359
+			function clampDir(val) { return ((parseFloat(val) % 360) + 360) % 360; }
+
+			// ── GLOBAL LIMITS UI ──
+			// ── WX AGE PILL ──
+			function updateWxAgePill() {
+				const pill  = $('wx-age-pill');
+				const track = $('tr-wx');
+				if (!pill) return;
+				if (!state.wx.length || !state.wxAbsoluteStart) {
+					pill.style.display = 'none';
+					if (track) { track.classList.remove('stale-warn','stale-danger'); }
+					return;
+				}
+				const ageHrs = (Date.now() - state.wxAbsoluteStart.getTime()) / 3_600_000;
+				const lbl    = ageHrs < 1 ? `${Math.round(ageHrs*60)}min old` : `${ageHrs.toFixed(0)}h old`;
+				pill.style.display = 'inline-block';
+				pill.textContent   = `WX: ${lbl}`;
+				if (ageHrs > 48) {
+					pill.style.borderColor = 'var(--danger)'; pill.style.color = 'var(--danger)';
+					if (track) { track.classList.remove('stale-warn'); track.classList.add('stale-danger'); }
+				} else if (ageHrs > 24) {
+					pill.style.borderColor = 'var(--warn)'; pill.style.color = 'var(--warn)';
+					if (track) { track.classList.add('stale-warn'); track.classList.remove('stale-danger'); }
+				} else {
+					pill.style.borderColor = 'var(--safe)'; pill.style.color = 'var(--safe)';
+					if (track) { track.classList.remove('stale-warn','stale-danger'); }
+				}
+			}
+			function dismissMissionChangePill() {
+				const ms = $('mission-start');
+				if (ms) ms.classList.remove('stale');
+				const msw = $('mission-start-wrap');
+				if (msw) msw.classList.remove('stale');
+				const badge = $('mission-change-badge');
+				if (badge) badge.style.display = 'none';
+				const note = $('wx-note');
+				if (note) { note.textContent = ''; note.style.color = ''; }
+			}
+
+			function toggleGlAccordion() {
+				const body  = $('gl-accord-body');
+				const arrow = $('gl-accord-arrow');
+				if (!body) return;
+				const open = body.style.display === 'flex';
+				body.style.display  = open ? 'none' : 'flex';
+				if (arrow) arrow.textContent = open ? '▸' : '▾';
+			}
+
+			function toggleGlobalLimit() {
+				const types = ['wind','wave','curr','temp'];
+				let anyActive = false;
+				types.forEach(t => {
+					const chk = $(`gl-${t}-chk`);
+					const val = $(`gl-${t}-val`);
+					const sfx = $(`gl-${t}-sfx`);
+					if (chk && val && sfx) {
+						const on = chk.checked;
+						val.style.display = on ? 'block' : 'none';
+						sfx.style.display = on ? 'inline' : 'none';
+						if (on) anyActive = true;
+					}
+				});
+				const note = $('gl-active-note');
+				if (note) note.style.display = anyActive ? 'block' : 'none';
+				sync();
+			}
+
+			function getGlobalLimits() {
+				const gl = {
+					wind: $('gl-wind-chk')?.checked ? parseFloat($('gl-wind-val')?.value) || 35  : null,
+					wave: $('gl-wave-chk')?.checked ? parseFloat($('gl-wave-val')?.value) || 2.5 : null,
+					curr: $('gl-curr-chk')?.checked ? parseFloat($('gl-curr-val')?.value) || 2.0 : null,
+					temp: $('gl-temp-chk')?.checked ? parseFloat($('gl-temp-val')?.value) || 0   : null,
+				};
+				// Persist to state so it survives plan save/load
+				state.globalLimits = gl;
+				return gl;
+			}
+
+			function applyGlobalLimitsToUI(gl) {
+				if (!gl) return;
+				const map = { wind: 35, wave: 2.5, curr: 2.0, temp: 0 };
+				Object.keys(map).forEach(k => {
+					if (gl[k] !== null && gl[k] !== undefined) {
+						const chk = $('gl-' + k + '-chk');
+						const val = $('gl-' + k + '-val');
+						if (chk) chk.checked = true;
+						if (val) val.value   = gl[k];
+					}
+				});
+				toggleGlobalLimit(); // refresh note
+				// Open accordion if any active
+				const anyActive = Object.values(gl).some(v => v !== null);
+				if (anyActive) {
+					const body  = $('gl-accord-body');
+					const arrow = $('gl-accord-arrow');
+					if (body)  body.style.display  = 'flex';
+					if (arrow) arrow.textContent = '▾';
+				}
+			}
+
+			// ── MISSION START: re-analysis prompt ──
+			let _missionStartPristine = true;
+			function updateClock() {
+				const val = $('mission-start').value;
+				if (!val) return;
+				state.start = new Date(val.replace(' ', 'T'));
+				if (!_missionStartPristine && state.wx.length) {
+					const ms = $('mission-start');
+					if (ms) ms.classList.add('stale');
+					const msw = $('mission-start-wrap');
+					if (msw) msw.classList.add('stale');
+					const badge = $('mission-change-badge');
+					if (badge) badge.style.display = 'inline-flex';
+					const note = $('wx-note');
+					if (note) { note.textContent = '⚠ RE-RUN ANALYSIS'; note.style.color = 'var(--danger)'; }
+				}
+				_missionStartPristine = false;
+				updateUI();
+				if (window.drawTideSparkline) drawTideSparkline();
+				sync();
+			}
+
+			['w', 'sea', 'sw', 'c'].forEach(pfx => {
+				$(pfx+'-dir').addEventListener('input', function() {
+					// Normalise on blur to avoid disrupting typing mid-entry
+					let map = { 'w':'wind', 'sea':'sea', 'sw':'swell', 'c':'curr' };
+					$(`arr-${map[pfx]}`).setAttribute('transform', `rotate(${this.value || 0}, 250, 250)`);
+					updateRelativeReadoutsFromInputs(); updateDPVector(getCurrentWxData());
+				});
+				$(pfx+'-dir').addEventListener('blur', function() {
+					if (this.value !== '') this.value = Math.round(clampDir(this.value));
+					let map = { 'w':'wind', 'sea':'sea', 'sw':'swell', 'c':'curr' };
+					$(`arr-${map[pfx]}`).setAttribute('transform', `rotate(${this.value || 0}, 250, 250)`);
+					updateRelativeReadoutsFromInputs(); updateDPVector(getCurrentWxData());
+				});
+			});
+
+			$('plot-svg').addEventListener('mousedown', (e) => {
+				let arrow = e.target.closest('.env-arrow'); 
+				if(arrow) draggingType = arrow.dataset.type; 
+			});
+			
+			// Real-Time Heading Input Bindings
+			['op-fixed-hdg', 'ed-op-hdg'].forEach(id => {
+				let el = $(id);
+				if (el) {
+					el.addEventListener('input', function() {
+						let val = parseInt(this.value) || 0;
+						if (id === 'ed-op-hdg') {
+							// Instantly update the data if we are actively editing
+							let curOp = state.ops[state.editOpIdx];
+							if (curOp) curOp.fixedHdg = val;
+						}
+						updatePlot();
+						sync(); // CRITICAL FIX: This rebuilds the Mission Sequence HUD text instantly
+						updateUI(); 
+					});
+				}
+			});
+			
+			window.addEventListener('mousemove', (e) => {
+		if(!draggingType) return;
+		
+		const r = $('plot-svg').getBoundingClientRect();
+		let a = Math.atan2(e.clientY - (r.top + r.height/2), e.clientX - (r.left + r.width/2)) * 180 / Math.PI + 90;
+		if(a < 0) a += 360; 
+		let ang = Math.round(a);
+
+		if(draggingType === 'hdg') { 
+			hdgOverride = true;
+			
+			// 1. Identify active task
+			let activeIdx = state.ops.findIndex(o => !o.completed && state.t >= o.start && state.t < o.end);
+			if ($('op-edit-panel').classList.contains('active')) {
+				if($('ed-op-hdg')) $('ed-op-hdg').value = ang;
+				activeIdx = state.editOpIdx; 
+			} else {
+				if($('op-fixed-hdg')) $('op-fixed-hdg').value = ang;
+			}
+			
+			// 2. Update Sidebar Data & HUD live
+			if (activeIdx !== -1 && state.ops[activeIdx]) {
+				state.ops[activeIdx].fixedHdg = ang;
+				let badgeEl = $('op-hdg-badge-' + activeIdx);
+				if (badgeEl) {
+					let tol = parseInt(state.ops[activeIdx].hdgMode) || 0;
+					badgeEl.innerHTML = tol === 0 ? `↳ 🔒 STRICT LOCK: ${ang.toString().padStart(3,'0')}°` : `↳ ⚓ TGT: ${ang.toString().padStart(3,'0')}° (±${tol}°)`;
+				}
+			}
+			state.hdg = ang;
+
+		} else {
+			// --- RESTORED WEATHER DRAGGING BLOCK ---
+			let pfx = state.isEditWxOpen ? 'ed-' : '';
+			if(draggingType === 'wind') $(pfx + 'w-dir').value = ang;
+			if(draggingType === 'sea') $(pfx + 'sea-dir').value = ang;
+			if(draggingType === 'swell') $(pfx + 'sw-dir').value = ang;
+			if(draggingType === 'curr') $(pfx + 'c-dir').value = ang;
+			
+			// Visually rotate the arrow being dragged
+			$(`arr-${draggingType}`).setAttribute('transform', `rotate(${ang}, 250, 250)`);
+		}
+		
+		// Global refreshes for all drag types
+		updatePlot(); 
+		updateRelativeReadoutsFromInputs(); 
+		updateDPVector(getCurrentWxData());
+
+		// Live Tooltip Update
+		if (draggingType !== 'hdg') {
+			let stern = (state.hdg + 180) % 360;
+			$(`arr-${draggingType}`).setAttribute('data-rel', Math.round((stern - ang + 360) % 360).toString().padStart(3, '0'));
+		}
+		if (typeof activeTooltip !== 'undefined' && activeTooltip) {
+			showTT(e, activeTooltip.label, activeTooltip.forceType);
+		}
+	});
+
+			window.addEventListener('mouseup', () => {
+				let currentDrag = draggingType;
+				draggingType = null; 
+				if(currentDrag && currentDrag !== 'hdg') {
+					let pfx = state.isEditWxOpen ? 'ed-' : ''; let fId = '';
+					if(currentDrag === 'wind') fId = pfx + 'w-spd'; 
+					if(currentDrag === 'sea') fId = pfx + 'sea-hs';
+					if(currentDrag === 'swell') fId = pfx + 'sw-hs'; 
+					if(currentDrag === 'curr') fId = pfx + 'c-spd';
+					setTimeout(() => { 
+						const el = $(fId); 
+						if(el) { el.dataset.dragFocus = 'true'; el.focus(); el.select(); } 
+					}, 50);
+				} else if (currentDrag === 'hdg') { 
+					try { updateUI(); } catch(e) { console.error(e); } 
+				}
+			});
+
+			// Initialize Spread Defaults
+			$('w-dir').value = 45; $('sea-dir').value = 315; $('sw-dir').value = 225; $('c-dir').value = 135;
+			sync(); updatePlot(); updateDPVector(getCurrentWxData());
+			// --- CLOUD AUTO-LOAD LOGIC ---
+			async function loadLiveGitHubData() {
+				try {
+					// Looks for this file in the same folder as your index.html
+					const response = await fetch('mission_data.js'); 
+					if (!response.ok) throw new Error("Cloud file not found.");
+					
+					const text = await response.text();
+					// Safe script injection instead of eval()
+					const script = document.createElement('script');
+					script.textContent = text;
+					document.head.appendChild(script);
+					document.head.removeChild(script);
+					
+					orcaData = {};
+					if (window.masterData) {
+						for (const key in window.masterData) {
+							let matrix = window.masterData[key].WAVE_HS_BY_TP;
+							if (matrix) {
+								// Check if the matrix has at least one valid number
+								let hasData = false;
+								for (let tp in matrix) {
+									if (matrix[tp].some(val => val !== null)) {
+										hasData = true;
+										break; // Found data, stop checking this matrix
+									}
+								}
+								
+								if (hasData) {
+									orcaData[key] = matrix;
+								} else {
+									console.warn(`Skipping ${key}: Matrix is completely empty.`);
+								}
+							}
+						}
+					}
+					populateDropdownMenus();
+					console.log("✅ Cloud Data Loaded Successfully!");
+					
+				} catch (err) {
+					console.warn("⚠️ Could not load default cloud data. Waiting for manual upload.", err);
+					// The app won't crash; it just waits for the user to click "LOAD FILES"
+				}
+			}
+
+			// Trigger the fetch as soon as the app opens
+			loadLiveGitHubData();
+			
+			function updateMissionAnchor() {
+    let val = $('mission-start').value;
+    if (!val) return;
+
+    // 1. Sync the internal "Brain" to the UI Clock
+    // Replace the space with T to make it a valid ISO string for JS
+    state.start = new Date(val.replace(' ', 'T'));
+
+    // 2. Trigger a full UI Redraw
+    // This forces the timeline markers and weather to re-align to the new "Zero Hour"
+    if (typeof updateUI === "function") updateUI();
+    
+    // 3. Re-draw the Tide if it exists
+    if (window.drawTideSparkline) drawTideSparkline();
+    
+    console.log("⏱️ Timeline re-anchored to: " + state.start.toLocaleString('en-GB'));
+}
+			
+			// ==========================================
+// 1. STORMGEO MAIN WEATHER PARSER
+// ==========================================
+
+function triggerStormGeo() {
+    alert("⚠️ Please ensure only standard StormGeo CSV exports are used.");
+    $('wx-csv-input').click();
+}
+
+function handleStormGeoCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    showNameModal("Enter Weather Block Duration in Hours (Minimum 6):", "6", function(inputDur) {
+        if (inputDur === null || inputDur === '') return;
+        let bucketSize = parseFloat(inputDur);
+        if (isNaN(bucketSize) || bucketSize < 6) bucketSize = 6;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n').filter(r => r.trim().length > 0);
+        let delimiter = rows[0].includes('\t') ? '\t' : (rows[0].includes(';') ? ';' : ',');
+
+        // Dynamic Header Mapping
+        let headers = rows[0].split(delimiter).map(h => h.replace(/['"]/g, '').trim().toLowerCase());
+        let getIdx = (keywords) => {
+            for (let kw of keywords) {
+                let idx = headers.findIndex(h => h === kw || h.includes(kw));
+                if (idx !== -1) return idx;
+            }
+            return -1;
+        };
+
+        let map = {
+            wDir:   getIdx(['winddirection','wind_direction','wdir']),
+            wSpd:   getIdx(['windspeed','wind_speed','wspd']),
+            swDir:  getIdx(['primarywavedirection','swelldirection','swell_direction']),
+            swHs:   getIdx(['swellheig','primarywaveheight','swell_hs']),
+            swTp:   getIdx(['primarywaveperiod','swellperiod','swell_tp']),
+            seaDir: getIdx(['secondarywavedirection','windwavedirection','windsea_direction']),
+            seaHs:  getIdx(['windwaveheight','secondarywaveheight','windsea_hs']),
+            seaTp:  getIdx(['secondarywaveperiod','windwaveperiod','windsea_tp'])
+        };
+
+        // ── CRITICAL: validate required columns before processing ──
+        const missingCols = [];
+        if (map.wDir  < 0) missingCols.push('WindDirection');
+        if (map.wSpd  < 0) missingCols.push('WindSpeed');
+        if (map.swHs  < 0) missingCols.push('SwellHeight');
+        if (map.seaHs < 0) missingCols.push('SeaHeight');
+        if (missingCols.length) {
+            alert(`❌ Cannot load forecast — columns not found:\n${missingCols.join(', ')}\n\nHeaders found:\n${headers.slice(0,8).join(', ')}`);
+            return;
+        }
+
+        // ── PASS 1: parse all dates to find actual CSV span ──
+        // Anchor is determined ONCE before any row processing
+        let firstDateMs = null;
+        let lastDateMs  = null;
+        let allDates    = [];
+
+        for (let i = 1; i < rows.length; i++) {
+            let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
+            if (cols.length < 4) continue;
+            let ts = cols[0];
+            let d  = new Date(ts).getTime();
+            if (isNaN(d) && ts.includes('/')) {
+                let parts = ts.split(/[ T]/);
+                let dp    = parts[0].split('/');
+                if (dp.length === 3)
+                    d = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${parts[1]||'00:00'}:00`).getTime();
+            }
+            if (!isNaN(d)) allDates.push(d);
+        }
+
+        if (allDates.length === 0) { alert('❌ No valid dates found in forecast file.'); return; }
+
+        firstDateMs = Math.min(...allDates);
+        lastDateMs  = Math.max(...allDates);
+
+        // ── ANCHOR: set once, outside any loop ──
+        // Use mission start if set, otherwise first row of CSV
+        let uiStart = document.getElementById('mission-start').value;
+        if (uiStart) state.start = new Date(uiStart.replace(' ', 'T'));
+        const missionAnchor = state.start ? state.start.getTime() : firstDateMs;
+
+        // ── Actual forecast span in hours (hard ceiling) ──
+        const forecastSpanHrs = (lastDateMs - missionAnchor) / MS_PER_HOUR;
+
+        // ── PASS 2: build parsedData with validated offsets ──
+        let parsedData = [];
+
+        for (let i = 1; i < rows.length; i++) {
+            let cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g, '').trim());
+            if (cols.length < 10) continue;
+
+            let ts = cols[0];
+            let rowDate = new Date(ts).getTime();
+            if (isNaN(rowDate) && ts.includes('/')) {
+                let parts = ts.split(/[ T]/);
+                let dp    = parts[0].split('/');
+                if (dp.length === 3)
+                    rowDate = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${parts[1]||'00:00'}:00`).getTime();
+            }
+            if (isNaN(rowDate)) continue;
+
+            const hourOffset = (rowDate - missionAnchor) / MS_PER_HOUR;
+            if (hourOffset < -0.5) continue;             // before mission start
+            if (hourOffset > forecastSpanHrs + 0.5) continue; // beyond actual data end
+
+            parsedData.push({
+                hour:   hourOffset,
+                wDir:   parseFloat(cols[map.wDir])  || 0,
+                wSpd:  (parseFloat(cols[map.wSpd])  || 0) * 1.94384,
+                swDir:  parseFloat(cols[map.swDir]) || 0,
+                swHs:   parseFloat(cols[map.swHs])  || 0,
+                swTp:   parseFloat(cols[map.swTp])  || 0,
+                seaDir: parseFloat(cols[map.seaDir])|| 0,
+                seaHs:  parseFloat(cols[map.seaHs]) || 0,
+                seaTp:  parseFloat(cols[map.seaTp]) || 0
+            });
+        }
+
+        if (parsedData.length === 0) {
+            alert("❌ No weather data falls within the mission window. Check mission start time.");
+            return;
+        }
+
+        // SET GLOBAL MISSION START TIME if not already set
+        if (!state.start && firstDateMs) {
+            let d = new Date(firstDateMs);
+            state.start = d;
+            if ($('mission-start')) {
+                let pad = n => n.toString().padStart(2, '0');
+                $('mission-start').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            }
+        }
+        state.wxAbsoluteStart = new Date(firstDateMs);
+        dismissMissionChangePill();
+
+        // ── BUCKETING: worst-case per block, capped to actual data ──
+        state.wx = [];
+        // Use actual last parsed hour — never extrapolate beyond real data
+        const maxHour = parsedData[parsedData.length - 1].hour;
+
+        for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
+            let endHour = Math.min(startHour + bucketSize, maxHour + 0.001);
+            let chunk   = parsedData.filter(d => d.hour >= startHour && d.hour < endHour);
+            if (chunk.length === 0) continue;
+
+            let worstWind  = chunk.reduce((max, cur) => cur.wSpd  > max.wSpd  ? cur : max, chunk[0]);
+            let worstSea   = chunk.reduce((max, cur) => cur.seaHs > max.seaHs ? cur : max, chunk[0]);
+            let worstSwell = chunk.reduce((max, cur) => cur.swHs  > max.swHs  ? cur : max, chunk[0]);
+
+            state.wx.push({
+                start: startHour, end: endHour,
+                wDir:   Math.round(worstWind.wDir),   wSpd:   worstWind.wSpd,
+                seaDir: Math.round(worstSea.seaDir),  seaHs:  worstSea.seaHs,  seaTp: worstSea.seaTp,
+                swDir:  Math.round(worstSwell.swDir), swHs:   worstSwell.swHs, swTp:  worstSwell.swTp,
+                cDir: 0, cSpd: 0
+            });
+        }
+
+        sync();
+
+        let pad      = n => n.toString().padStart(2, '0');
+        let neatDate = `${pad(state.start.getDate())}/${pad(state.start.getMonth()+1)}/${state.start.getFullYear()} ${pad(state.start.getHours())}:00`;
+        let neatEnd  = new Date(lastDateMs);
+        let endStr   = `${pad(neatEnd.getDate())}/${pad(neatEnd.getMonth()+1)} ${pad(neatEnd.getHours())}:00`;
+        let spanHrs  = Math.round(maxHour);
+
+        alert(`✅ Forecast Synced\nMission Start: ${neatDate}\nForecast End:  ${endStr}\nWindow: ${spanHrs}h (${state.wx.length} blocks of ${bucketSize}h)`);
+    };
+
+    reader.readAsText(file);
+    event.target.value = "";
+    }); // end showNameModal callback
+}
+
+
+// ==========================================
+// 2. STORMGEO CURRENTS PARSER (SMART MATCHER)
+// ==========================================
+
+function triggerStormGeoCurrent() {
+    if (state.wx.length === 0 || !state.start) {
+        alert("⚠️ Please load the Main WX Forecast first to establish the timeline!");
+        return;
+    }
+    $('curr-csv-input').click();
+}
+
+function handleStormGeoCurrentCSV(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!state.start) {
+        alert("⚠️ Please set a MISSION START TIME in the header first!");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n').filter(r => r.trim().length > 0);
+        
+        let parsedData = [];
+        let missionAnchor = state.start.getTime();
+
+        for (let i = 1; i < rows.length; i++) {
+            let rowStr = rows[i].trim().replace(/['"]/g, '');
+            let cols = rowStr.split(/[\t,;]+/);
+            
+            // Space-Separator Fallback
+            if (cols.length === 1) {
+                let spaceSplit = rowStr.split(/\s+/);
+                if (spaceSplit.length >= 4 && spaceSplit[0].includes('/')) {
+                    cols = [ spaceSplit[0] + " " + spaceSplit[1], spaceSplit[2], spaceSplit[3] ];
+                }
+            }
+
+            if (cols.length < 3) continue; 
+            
+            let timeString = cols[0]; 
+            let rowDate = new Date(timeString).getTime();
+
+            // --- THE SMART MATCHER ---
+            // Forces the current date to match the mission timeline regardless of M/D or D/M
+            if (timeString.includes('/')) {
+                let parts = timeString.split(/[ T]/); 
+                let dp = parts[0].split('/');
+                if (dp.length === 3) {
+                    let tStr = parts[1] || '00:00';
+                    let d1 = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${tStr}:00`).getTime(); // Euro
+                    let d2 = new Date(`${dp[2]}-${dp[0].padStart(2,'0')}-${dp[1].padStart(2,'0')}T${tStr}:00`).getTime(); // US
+
+                    let d1Valid = !isNaN(d1);
+                    let d2Valid = !isNaN(d2);
+
+                    if (d1Valid && d2Valid) {
+                        rowDate = Math.abs(d1 - missionAnchor) < Math.abs(d2 - missionAnchor) ? d1 : d2;
+                    } else if (d1Valid) { rowDate = d1; } 
+                      else if (d2Valid) { rowDate = d2; }
+                }
+            }
+
+            if (isNaN(rowDate)) continue;
+
+            // Calculate offset from timeline zero-point
+            let hourOffset = (rowDate - missionAnchor) / MS_PER_HOUR; 
+            if (hourOffset < -0.5) continue; 
+
+            parsedData.push({
+                hour: hourOffset,
+                start: hourOffset,         // NEW: Start of the hourly block
+                end: hourOffset + 1,       // NEW: End of the hourly block (1 hour duration)
+                cDir: parseFloat(cols[1]) || 0,
+                cSpd: parseFloat(cols[2]) || 0 
+            });
+        }
+
+        if (parsedData.length === 0) {
+            alert("❌ ERROR: No valid current data found occurring after your Mission Start Time.\nCheck your file format or start date.");
+            return;
+        }
+
+        state.curr = parsedData;
+        sync();
+        alert(`✅ Tidal Currents Synced! (${parsedData.length} records loaded)`);
+    };
+    
+    reader.readAsText(file);
+    event.target.value = "";  
+}
+
+function triggerTide() {
+    const input = document.getElementById('tide-txt-input');
+    if (input) {
+        input.click();
+    } else {
+        console.error("Could not find the hidden tide input element.");
+    }
+}
+
+function handleTideData(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const text = event.target.result;
+        // Clean up the data: split into lines, trim spaces/quotes, remove empty rows
+        const rows = text.split(/\r?\n/)
+                         .map(r => r.replace(/"/g, '').trim()) 
+                         .filter(r => r.length > 0);
+        
+        let processedTide = [];
+        let i = 0;
+
+        while (i < rows.length) {
+            let row = rows[i];
+
+            // 1. Skip non-date headers (like "April" or "00:00")
+            if (!row.includes('/') || row.includes(':')) {
+                i++;
+                continue;
+            }
+
+            // 2. We found a date (e.g., "01/04/2026")
+            let dateStr = row;
+            let [d, m, y] = dateStr.split('/').map(Number);
+            let rowDate = new Date(y, m - 1, d, 0, 0);
+
+            // 3. The next 24 rows MUST be the hourly values
+            for (let hour = 0; hour < 24; hour++) {
+                i++; // Move to the next row for the value
+                if (i >= rows.length) break;
+
+                let val = parseFloat(rows[i]);
+                
+                if (!isNaN(val) && state.start) {
+                    // Calculate offset from timeline zero-point
+                    let elapsed = (rowDate.getTime() - state.start.getTime()) / MS_PER_HOUR + hour;
+                    
+                    if (elapsed >= 0) {
+                        processedTide.push({
+                            hour: elapsed,
+                            height: val / 100 // cm to meters
+                        });
+                    }
+                }
+            }
+            i++; // Advance past the last hour value to check for the next date
+        }
+
+        // Finalize and refresh
+        if (processedTide.length > 0) {
+            state.tide = processedTide.sort((a, b) => a.hour - b.hour);
+            console.log(`Tide Sync: Processed ${state.tide.length} hourly points.`);
+            sync(); 
+            if (window.drawTideSparkline) drawTideSparkline();
+        } else {
+            alert("⚠️ No tide data matched. Ensure StormGeo WX is loaded first to set the timeline start date.");
+        }
+    };
+    reader.readAsText(file);
+}
+
+			function drawTideSparkline() {
+				if (!state.tide || state.tide.length === 0 || !$('svg-tide')) return;
+
+				// Filter for only the data that fits inside our current timeline width
+				let visibleTide = state.tide.filter(t => t.hour <= state.t_pop);
+				if (visibleTide.length === 0) return;
+
+				let maxT = state.t_pop;
+				let maxH = Math.max(...visibleTide.map(t => t.height));
+				let minH = Math.min(...visibleTide.map(t => t.height));
+				let range = maxH - minH;
+				if (range === 0) range = 1; // Failsafe against division by zero
+
+				// Calculate exact X and Y coordinates (in percentages) for the SVG line
+				let pts = visibleTide.map(t => {
+					let x = (t.hour / maxT) * 100;
+					let y = 100 - (((t.height - minH) / range) * 100);
+					return `${x},${y}`;
+				}).join(' ');
+
+				// Inject the vector graphic
+				// stroke-dasharray creates the dashed effect. opacity="0.5" makes it a ghost.
+				$('svg-tide').innerHTML = `
+					<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible;">
+						<polyline points="${pts}" fill="none" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="2, 3" opacity="0.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" />
+					</svg>
+				`;
+			}
+			
+			// --- TIDE TOOLTIP ENGINE ---
+			
+			function showTideTooltip(e) {
+				if (!state.tide || state.tide.length === 0) return;
+
+				const track = $('tr-wx');
+				const rect = track.getBoundingClientRect();
+				
+				// Calculate hour using remaining window (same as track render)
+				const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+				const pct = x / rect.width;
+				const _lastDoneTT  = [...state.ops].reverse().find(o => o.completed);
+				const _winStartTT  = _lastDoneTT ? _lastDoneTT.end : 0;
+				const _winSpanTT   = Math.max(1, state.t_pop - _winStartTT);
+				const hoverTime    = _winStartTT + pct * _winSpanTT;
+
+				// Find the two closest hourly tide records to interpolate between
+				let t1 = state.tide.find(t => t.hour <= hoverTime && hoverTime - t.hour <= 1);
+				let t2 = state.tide.find(t => t.hour > hoverTime && t.hour - hoverTime <= 1);
+
+				let heightStr = "";
+				if (t1 && t2) {
+					// Linear interpolation for smooth data reading between the hours
+					let ratio = (hoverTime - t1.hour) / (t2.hour - t1.hour);
+					let h = t1.height + ratio * (t2.height - t1.height);
+					heightStr = h.toFixed(2) + "m";
+				} else if (t1) {
+					heightStr = t1.height.toFixed(2) + "m";
+				} else if (t2) {
+					heightStr = t2.height.toFixed(2) + "m";
+				} else {
+					hideTideTooltip(); // Mouse is beyond available data
+					return; 
+				}
+
+				// Update text and position
+				const tt = $('tide-tooltip');
+				tt.innerText = `🌊 TIDE: ${heightStr}`;
+				tt.style.display = 'block';
+
+				// Center the tooltip exactly over the mouse cursor, slightly above the track
+				let ttWidth = tt.offsetWidth || 70;
+				let leftPos = x - (ttWidth / 2);
+
+				// Prevent tooltip from clipping off the left or right edges
+				if (leftPos < 0) leftPos = 0;
+				if (leftPos + ttWidth > rect.width) leftPos = rect.width - ttWidth;
+
+				tt.style.left = leftPos + 'px';
+				tt.style.top = '2px'; 
+			}
+
+			function hideTideTooltip() {
+				if ($('tide-tooltip')) $('tide-tooltip').style.display = 'none';
+			}
+			
+			
+			// --- SMART ONBOARDING (Runs once on load) ---
+			window.addEventListener('DOMContentLoaded', () => {
+				// Check if they are a first-time visitor
+				if (!localStorage.getItem('opsPlanner_hasSeenReadme')) {
+					// Pop the Read Me modal
+					if ($('readme-modal')) {
+						$('readme-modal').style.display = 'flex';
+					}
+					// Leave a cookie so we don't bother them again tomorrow
+					localStorage.setItem('opsPlanner_hasSeenReadme', 'true');
+				}
+			}); // <-- The Event Listener properly closes here!
+
+			// --- MASTER PROJECT EXPORT (.txt) ---
+			function exportPlan() {
+				if (!state.ops || state.ops.length === 0) {
+					alert("⚠️ Nothing to save. Build a sequence first!");
+					return;
+				}
+				showNameModal("Enter Project Name:", "OFFSHORE_OP_01", function(projectName) {
+					if (!projectName) return;
+					const cleanName = projectName.replace(/[^a-z0-9]/gi, '_').toUpperCase();
+					const dateStr   = new Date().toISOString().split('T')[0].replace(/-/g,'');
+					const fileName  = `${cleanName}_PLAN_${dateStr}.csv`;
+
+					const gl = getGlobalLimits();
+					const glParts = ['wind','wave','curr','temp']
+						.filter(k => gl[k] !== null)
+						.map(k => `${k}=${gl[k]}`).join(',');
+
+					const rows = [];
+					// ── HEADER ──
+					rows.push('# WxPlanner Plan v2');
+					rows.push(`# Project,${projectName}`);
+					rows.push(`# MissionStart,${state.start ? state.start.toISOString() : ''}`);
+					if (glParts) rows.push(`# GlobalLimits,${glParts}`);
+					rows.push('# ---');
+
+					// ── OPERATIONS ──
+					// OP,label,start,end,fixedHdg,hdgMode,refs,hasLim,limType,limVal,limDir,limTol,hasWaveLimit,maxHs
+					state.ops.forEach(op => {
+						const refs = (op.refs || ['NONE']).join('|');
+						rows.push([
+							'OP',
+							`"${(op.label || '').replace(/"/g, '""')}"`,
+							op.start,
+							op.end,
+							op.fixedHdg || 0,
+							op.hdgMode  || 45,
+							refs,
+							op.hasLim       ? '1' : '0',
+							op.limType      || 'WIND',
+							op.limVal       || 0,
+							op.limDir       || 0,
+							op.limTol       || 45,
+							op.hasWaveLimit ? '1' : '0',
+							op.maxHs        || 2.5,
+							op.completed    ? '1' : '0',
+						].join(','));
+					});
+					rows.push('# ---');
+
+					// ── ANALYSIS MATRICES (all loaded tables — complete library) ──
+					const lib = orcaData;
+					Object.keys(lib).forEach(analysisId => {
+						const entry = lib[analysisId];
+						if (!entry) return;
+						// Handle both flat {tp:[vals]} and nested {LC:{tp:[vals]}}
+						const isFlat = Object.values(entry).some(v => Array.isArray(v));
+						if (isFlat) {
+							// Flat: orcaData[id][tp] = [12 vals]
+							Object.keys(entry).forEach(tp => {
+								if (Array.isArray(entry[tp])) {
+									rows.push(['MATRIX', analysisId, 'WAVE_HS_BY_TP', tp,
+										...entry[tp].map(v => v === null ? '' : v)].join(','));
+								}
+							});
+						} else {
+							// Nested: orcaData[id][LC][tp] = [12 vals]
+							Object.keys(entry).forEach(limitClass => {
+								const tpMap = entry[limitClass];
+								if (!tpMap || typeof tpMap !== 'object') return;
+								Object.keys(tpMap).forEach(tp => {
+									if (Array.isArray(tpMap[tp])) {
+										rows.push(['MATRIX', analysisId, limitClass, tp,
+											...tpMap[tp].map(v => v === null ? '' : v)].join(','));
+									}
+								});
+							});
+						}
+					});
+
+					const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+					const url  = URL.createObjectURL(blob);
+					const a    = document.createElement('a');
+					a.href = url; a.download = fileName; a.click();
+					URL.revokeObjectURL(url);
+				});
+			}
+			
+			// --- EXCEL INJECTION ENGINE ---
+			function processPastedData() {
+				const raw = $('paste-area').value.trim();
+				if (!raw) { alert("Please paste data from the Excel template."); return; }
+
+				const rows = raw.split(/\n/);
+				let addedCount = 0;
+				let lastUsedId = "";
+
+				rows.forEach(row => {
+					const cols = row.split('\t').map(c => c.trim());
+
+					// Standard 15-column check (ID, Class, Value + 12 headings)
+					if (cols.length < 15) return;
+
+					// Header filtering
+					if (cols[0].toLowerCase().includes("analysis_id") || 
+						cols[1].toLowerCase().includes("limit_class")) return;
+
+					// THE TRIM FIX: Ensures IDs like "MAIN_LAY " match "MAIN_LAY"
+					const id = cols[0].toUpperCase();
+					const limitClass = cols[1].toUpperCase(); 
+					const paramVal = cols[2]; 
+					
+					const headings = cols.slice(3, 15).map(v => {
+						let num = parseFloat(v);
+						return isNaN(num) ? null : num;
+					});
+
+					if (!orcaData[id]) orcaData[id] = {};
+					if (!orcaData[id][limitClass]) orcaData[id][limitClass] = {};
+
+					orcaData[id][limitClass][paramVal] = headings;
+					addedCount++;
+					lastUsedId = id;
+				});
+
+				if (addedCount > 0) {
+					// 1. Rebuild Dropdowns
+					populateDropdownMenus();
+					
+					// 2. FORCE SYNC: This is likely why your heatmap didn't respond.
+					// It pushes the new data into the active state immediately.
+					sync(); 
+					updateUI(); 
+
+					$('paste-analysis-modal').style.display = 'none';
+					$('paste-area').value = '';
+					
+					alert(`✅ SUCCESS\nLibrary Updated: ${lastUsedId}\nRows Injected: ${addedCount}`);
+				} else {
+					alert("❌ ERROR: No valid data found. Ensure you are copying the full Row (Columns A to O) from Excel.");
+				}
+		   }
+
+
+		// ==========================================
+		// MOBILE: ORIENTATION LOCK & TOUCH EVENTS
+		// ==========================================
+
+		// --- Attempt programmatic landscape lock (works on Android PWA, ignored by iOS) ---
+		function attemptOrientationLock() {
+			try {
+				if (screen.orientation && screen.orientation.lock) {
+					screen.orientation.lock('landscape').catch(() => {
+						// Silently fail — iOS Safari blocks this. The CSS overlay handles it.
+					});
+				}
+			} catch(e) { /* not supported */ }
+		}
+		attemptOrientationLock();
+
+		// --- Touch helpers: extract first touch coords to mirror mouse events ---
+		function touchCoords(e) {
+			const t = e.touches[0] || e.changedTouches[0];
+			return { clientX: t.clientX, clientY: t.clientY, pageX: t.pageX, pageY: t.pageY };
+		}
+
+		// --- Touch support for compass SVG arrows and heading handle ---
+		const plotSvg = $('plot-svg');
+		if (plotSvg) {
+			plotSvg.addEventListener('touchstart', (e) => {
+				e.preventDefault();
+				let arrow = e.target.closest('.env-arrow');
+				if (arrow) draggingType = arrow.dataset.type;
+			}, { passive: false });
+
+			plotSvg.addEventListener('touchmove', (e) => {
+				e.preventDefault();
+				if (!draggingType) return;
+				// Fire the existing mousemove handler logic with touch coords
+				const coords = touchCoords(e);
+				const r = plotSvg.getBoundingClientRect();
+				let a = Math.atan2(
+					coords.clientY - (r.top + r.height / 2),
+					coords.clientX - (r.left + r.width / 2)
+				) * 180 / Math.PI + 90;
+				if (a < 0) a += 360;
+				let ang = Math.round(a);
+
+				if (draggingType === 'hdg') {
+					hdgOverride = true;
+					let activeIdx = state.ops.findIndex(o => !o.completed && state.t >= o.start && state.t < o.end);
+					if ($('op-edit-panel').classList.contains('active')) {
+						if ($('ed-op-hdg')) $('ed-op-hdg').value = ang;
+						activeIdx = state.editOpIdx;
+					} else {
+						if ($('op-fixed-hdg')) $('op-fixed-hdg').value = ang;
+					}
+					if (activeIdx !== -1 && state.ops[activeIdx]) {
+						state.ops[activeIdx].fixedHdg = ang;
+						let badgeEl = $('op-hdg-badge-' + activeIdx);
+						if (badgeEl) {
+							let tol = parseInt(state.ops[activeIdx].hdgMode) || 0;
+							badgeEl.innerHTML = tol === 0
+								? `↳ 🔒 STRICT LOCK: ${ang.toString().padStart(3,'0')}°`
+								: `↳ ⚓ TGT: ${ang.toString().padStart(3,'0')}° (±${tol}°)`;
+						}
+					}
+					state.hdg = ang;
+				} else {
+					let pfx = state.isEditWxOpen ? 'ed-' : '';
+					if (draggingType === 'wind')  $(pfx + 'w-dir').value = ang;
+					if (draggingType === 'sea')   $(pfx + 'sea-dir').value = ang;
+					if (draggingType === 'swell') $(pfx + 'sw-dir').value = ang;
+					if (draggingType === 'curr')  $(pfx + 'c-dir').value = ang;
+					$(`arr-${draggingType}`).setAttribute('transform', `rotate(${ang}, 250, 250)`);
+				}
+
+				updatePlot();
+				updateRelativeReadoutsFromInputs();
+				updateDPVector(getCurrentWxData());
+
+				if (draggingType !== 'hdg') {
+					let stern = (state.hdg + 180) % 360;
+					$(`arr-${draggingType}`).setAttribute('data-rel',
+						Math.round((stern - ang + 360) % 360).toString().padStart(3, '0'));
+				}
+				if (typeof activeTooltip !== 'undefined' && activeTooltip) {
+					showTT(coords, activeTooltip.label, activeTooltip.forceType);
+				}
+			}, { passive: false });
+
+			plotSvg.addEventListener('touchend', (e) => {
+				e.preventDefault();
+				let currentDrag = draggingType;
+				draggingType = null;
+				if (currentDrag && currentDrag !== 'hdg') {
+					let pfx = state.isEditWxOpen ? 'ed-' : '';
+					let fId = '';
+					if (currentDrag === 'wind')  fId = pfx + 'w-spd';
+					if (currentDrag === 'sea')   fId = pfx + 'sea-hs';
+					if (currentDrag === 'swell') fId = pfx + 'sw-hs';
+					if (currentDrag === 'curr')  fId = pfx + 'c-spd';
+					setTimeout(() => {
+						const el = $(fId);
+						if (el) { el.dataset.dragFocus = 'true'; el.focus(); el.select(); }
+					}, 50);
+				} else if (currentDrag === 'hdg') {
+					try { updateUI(); } catch(err) { console.error(err); }
+				}
+			}, { passive: false });
+		}
+
+		// --- Touch support for timeline scrubber ---
+		function touchScrub(e) {
+			e.preventDefault();
+			isScrubbing = true;
+			hdgOverride = false;
+
+			const move = (ev) => {
+				const coords = touchCoords(ev);
+				const r = $('tr-op').getBoundingClientRect();
+				state.t = Math.max(0, Math.min(state.t_pop,
+					((coords.clientX - r.left) / r.width) * state.t_pop));
+				updateUI();
+				setTimeout(() => {
+					let activeOpIndex = state.ops.findIndex(o => !o.completed && state.t >= o.start && state.t < o.end);
+					if (activeOpIndex !== -1) {
+						let card = document.getElementById(`op-card-${activeOpIndex}`);
+						if (card) card.scrollIntoView({ behavior: 'auto', block: 'center' });
+					}
+				}, 10);
+			};
+
+			move(e);
+			window.addEventListener('touchmove', move, { passive: false });
+			window.addEventListener('touchend', () => {
+				window.removeEventListener('touchmove', move);
+				isScrubbing = false;
+			}, { once: true });
+		}
+
+		const trOp = $('tr-op');
+		const trWx = $('tr-wx');
+		if (trOp) trOp.addEventListener('touchstart', touchScrub, { passive: false });
+		if (trWx) trWx.addEventListener('touchstart', touchScrub, { passive: false });
+
+		</script>
+	</body>
+	</html>
