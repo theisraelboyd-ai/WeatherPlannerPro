@@ -1,0 +1,3244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+	<meta name="mobile-web-app-capable" content="yes">
+	<link rel="manifest" href="manifest.json">
+	<title>WxPlanner Field</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg:      #040810;
+			--panel:   #080f1e;
+			--card:    #0c1628;
+			--border:  #1a2d4a;
+			--accent:  #00d4ff;
+			--safe:    #00e887;
+			--warn:    #ffb800;
+			--danger:  #ff3b3b;
+			--text:    #e8f4ff;
+			--muted:   #8ba3c0;
+			--c-wind:  #ff5555;
+			--c-sea:   #38bdf8;
+			--c-swell: #818cf8;
+			--c-curr:  #e879f9;
+			--mono:    'Share Tech Mono', monospace;
+			--sans:    'Barlow Condensed', sans-serif;
+			--WARN_THRESHOLD: 0.8;
+		}
+		* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+		body {
+			font-family: var(--sans);
+			background: var(--bg);
+			color: var(--text);
+			min-height: 100dvh;
+			overflow-x: hidden;
+			background-image:
+				linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+				linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+			background-size: 44px 44px;
+		}
+		body::after {
+			content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9000;
+			background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px);
+		}
+
+		/* ─── TOPBAR ─── */
+		.topbar {
+			position: sticky; top: 0; z-index: 200;
+			background: rgba(4,8,16,0.97); backdrop-filter: blur(10px);
+			border-bottom: 1px solid var(--border);
+			display: flex; align-items: center; justify-content: space-between;
+			padding: 10px 14px 8px;
+			gap: 10px;
+		}
+		.topbar-brand { display: flex; flex-direction: column; gap: 1px; }
+		.topbar-title {
+			font-size: 1.1rem; font-weight: 900; letter-spacing: 3px;
+			text-transform: uppercase; color: var(--accent);
+			text-shadow: 0 0 18px rgba(0,212,255,0.45);
+		}
+		.topbar-sub { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); letter-spacing: 1px; }
+		.topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+		.clock-badge {
+			font-family: var(--mono); font-size: 0.82rem; color: var(--safe);
+			background: rgba(0,232,135,0.08); border: 1px solid rgba(0,232,135,0.2);
+			border-radius: 4px; padding: 4px 10px; letter-spacing: 1px;
+		}
+		.desktop-topbar-btn {
+			font-family: var(--sans); font-size: 0.65rem; font-weight: 700;
+			letter-spacing: 1px; text-transform: uppercase; text-decoration: none;
+			color: var(--muted); border: 1px solid var(--border);
+			background: transparent; border-radius: 4px;
+			padding: 4px 8px; transition: 0.2s; white-space: nowrap;
+			display: inline-flex; align-items: center;
+		}
+		.desktop-topbar-btn:hover { color: #a5b4fc; border-color: #818cf8; }
+
+		/* ─── SCROLL BODY ─── */
+		.page { display: none; flex-direction: column; gap: 10px; padding: 12px 12px 90px; }
+		.page.active { display: flex; }
+
+		/* ─── SECTION LABEL ─── */
+		.sec {
+			font-size: 0.68rem; font-weight: 700; letter-spacing: 2.5px;
+			text-transform: uppercase; color: var(--muted);
+			display: flex; align-items: center; gap: 8px; padding: 0 2px;
+		}
+		.sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+		/* ─── CARDS ─── */
+		.card {
+			background: var(--card); border: 1px solid var(--border);
+			border-radius: 8px; padding: 16px 18px;
+		}
+		.card-accent { border-left: 3px solid var(--accent); }
+
+		/* ─── LOAD SCREEN ─── */
+		.load-zone {
+			border: 2px dashed var(--border); border-radius: 12px;
+			padding: 32px 20px; text-align: center;
+			display: flex; flex-direction: column; align-items: center; gap: 14px;
+			cursor: pointer; transition: 0.2s; position: relative;
+		}
+		.load-zone:hover, .load-zone:active { border-color: var(--accent); background: rgba(0,212,255,0.04); }
+		.load-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+		.load-icon { font-size: 2.8rem; }
+		.load-title { font-size: 1.15rem; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); }
+		.load-sub { font-size: 0.82rem; color: var(--muted); font-weight: 600; letter-spacing: 1px; }
+
+		.load-divider {
+			display: flex; align-items: center; gap: 10px;
+			font-size: 0.68rem; font-weight: 700; letter-spacing: 2px;
+			color: var(--muted); text-transform: uppercase;
+		}
+		.load-divider::before, .load-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+		.load-plan-info {
+			background: rgba(0,232,135,0.06); border: 1px solid rgba(0,232,135,0.2);
+			border-radius: 8px; padding: 14px 16px;
+			display: flex; align-items: center; gap: 12px;
+		}
+		.load-plan-icon { font-size: 1.6rem; }
+		.load-plan-name { font-size: 1rem; font-weight: 700; color: var(--safe); text-transform: uppercase; letter-spacing: 1px; }
+		.load-plan-meta { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+		/* ─── WEATHER IMPORT ─── */
+		.wx-import-row { display: flex; gap: 8px; }
+		.wx-import-btn {
+			flex: 1; display: flex; flex-direction: column; align-items: center;
+			gap: 7px; padding: 16px 10px;
+			background: var(--card); border: 1px solid var(--border);
+			border-radius: 8px; cursor: pointer; transition: 0.2s;
+			position: relative; text-align: center;
+		}
+		.wx-import-btn input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+		.wx-import-btn:hover { border-color: var(--accent); }
+		.wx-import-btn.loaded { border-color: var(--safe); background: rgba(0,232,135,0.05); }
+		.wx-import-icon { font-size: 1.5rem; }
+		.wx-import-label { font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); line-height: 1.4; }
+		.wx-import-btn.loaded .wx-import-label { color: var(--safe); }
+		.wx-import-count { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); }
+
+		.run-btn {
+			width: 100%; padding: 16px; border-radius: 8px; border: none;
+			background: linear-gradient(135deg, #005c70, #007a5e);
+			color: var(--text); font-family: var(--sans); font-size: 1rem;
+			font-weight: 900; letter-spacing: 3px; text-transform: uppercase;
+			cursor: pointer; transition: 0.2s;
+			box-shadow: 0 4px 20px rgba(0,212,255,0.2);
+		}
+		.run-btn:hover { filter: brightness(1.15); }
+		.run-btn:disabled { opacity: 0.3; cursor: not-allowed; filter: none; }
+
+		/* ─── ACTION BUTTONS ROW ─── */
+		.action-row { display: flex; gap: 8px; }
+		.action-btn {
+			flex: 1; padding: 12px 8px; border-radius: 6px;
+			border: 1px solid var(--border); background: var(--card);
+			color: var(--text); font-family: var(--sans);
+			font-size: 0.75rem; font-weight: 700; letter-spacing: 1px;
+			text-transform: uppercase; cursor: pointer; transition: 0.2s;
+			text-align: center;
+		}
+		.action-btn:hover { border-color: var(--accent); color: var(--accent); }
+		.action-btn.export-btn { border-color: rgba(0,212,255,0.3); color: var(--accent); }
+		.action-btn.save-btn   { border-color: rgba(0,232,135,0.3); color: var(--safe); }
+
+		/* ─── RESULTS OVERVIEW ─── */
+		.results-summary {
+			display: grid; grid-template-columns: 1fr 1fr 1fr;
+			gap: 8px;
+		}
+		.summary-cell {
+			background: var(--card); border: 1px solid var(--border);
+			border-radius: 8px; padding: 14px 10px; text-align: center;
+			display: flex; flex-direction: column; gap: 5px;
+		}
+		.summary-count {
+			font-family: var(--mono); font-size: 2.4rem; line-height: 1; font-weight: 400;
+		}
+		.summary-cell.s-pass  .summary-count { color: var(--safe);   }
+		.summary-cell.s-warn  .summary-count { color: var(--warn);   }
+		.summary-cell.s-fail  .summary-count { color: var(--danger); }
+		.summary-label {
+			font-size: 0.65rem; font-weight: 700; letter-spacing: 2px;
+			text-transform: uppercase; color: var(--muted);
+		}
+
+		/* ─── OPERATION RESULT CARDS ─── */
+		.op-result {
+			background: var(--card); border: 1px solid var(--border);
+			border-radius: 8px; overflow: hidden; transition: 0.15s;
+		}
+		.op-result-header {
+			display: flex; align-items: center; gap: 12px;
+			padding: 14px 16px; cursor: pointer; user-select: none;
+		}
+		.op-status-dot {
+			width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+		}
+		.op-result.r-pass .op-status-dot { background: var(--safe); box-shadow: 0 0 8px var(--safe); }
+		.op-result.r-warn .op-status-dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+		.op-result.r-fail .op-status-dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation: blink 1s ease-in-out infinite; }
+		.op-result.r-nodata .op-status-dot { background: var(--muted); }
+		@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+		.op-result.r-pass { border-left: 4px solid var(--safe); }
+		.op-result.r-warn { border-left: 4px solid var(--warn); }
+		.op-result.r-fail { border-left: 4px solid var(--danger); }
+		.op-result.r-nodata { border-left: 4px solid var(--muted); }
+
+		.op-result-name {
+			flex: 1; font-size: 1rem; font-weight: 900;
+			text-transform: uppercase; letter-spacing: 1px;
+		}
+		.op-result-verdict {
+			font-size: 0.7rem; font-weight: 700; letter-spacing: 2px;
+			text-transform: uppercase; padding: 4px 10px;
+			border-radius: 4px; flex-shrink: 0;
+		}
+		.r-pass .op-result-verdict { background: rgba(0,232,135,0.12); color: var(--safe); }
+		.r-warn .op-result-verdict { background: rgba(255,184,0,0.12);  color: var(--warn); }
+		.r-fail .op-result-verdict { background: rgba(255,59,59,0.15);  color: var(--danger); }
+		.r-nodata .op-result-verdict { background: rgba(74,96,128,0.2); color: var(--muted); }
+
+		.op-result-chevron {
+			font-size: 0.8rem; color: var(--muted);
+			transition: transform 0.2s; flex-shrink: 0;
+		}
+		.op-result.open .op-result-chevron { transform: rotate(90deg); }
+
+		/* ─── TRACEABILITY DETAIL ─── */
+		.trace-body {
+			display: none; flex-direction: column; gap: 0;
+			border-top: 1px solid var(--border);
+		}
+		.op-result.open .trace-body { display: flex; }
+
+		.trace-meta {
+			padding: 10px 16px; background: rgba(0,0,0,0.2);
+			display: flex; gap: 20px; flex-wrap: wrap;
+			border-bottom: 1px solid var(--border);
+		}
+		.trace-meta-item { display: flex; flex-direction: column; gap: 2px; }
+		.trace-meta-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+		.trace-meta-value { font-family: var(--mono); font-size: 0.82rem; color: var(--accent); }
+
+		.wx-segment { border-bottom: 1px solid var(--border); }
+		.wx-segment:last-child { border-bottom: none; }
+
+		.wx-seg-header {
+			padding: 10px 16px; background: rgba(0,0,0,0.15);
+			display: flex; justify-content: space-between; align-items: center;
+			flex-wrap: wrap; gap: 6px;
+		}
+		.wx-seg-time { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); line-height: 1.6; }
+		.wx-seg-verdict {
+			font-size: 0.68rem; font-weight: 700; letter-spacing: 1.5px;
+			text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+		}
+		.wx-seg-verdict.pass   { background: rgba(0,232,135,0.1);  color: var(--safe);   }
+		.wx-seg-verdict.warn   { background: rgba(255,184,0,0.1);  color: var(--warn);   }
+		.wx-seg-verdict.fail   { background: rgba(255,59,59,0.15); color: var(--danger); }
+		.wx-seg-verdict.nodata { background: rgba(74,96,128,0.15); color: var(--muted);  }
+
+		.trace-rows { padding: 8px 16px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+		.trace-row {
+			background: rgba(0,0,0,0.25); border-radius: 6px;
+			border: 1px solid var(--border); overflow: hidden;
+		}
+		.trace-row-header {
+			padding: 8px 12px; display: flex; justify-content: space-between;
+			align-items: center; gap: 8px;
+		}
+		.trace-ref {
+			font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+			letter-spacing: 1px; color: var(--accent);
+		}
+		.trace-class { font-size: 0.65rem; color: var(--muted); letter-spacing: 1px; margin-top: 1px; }
+		.trace-badge {
+			font-size: 0.68rem; font-weight: 700; letter-spacing: 1px;
+			text-transform: uppercase; padding: 3px 9px; border-radius: 3px; flex-shrink: 0;
+		}
+		.trace-badge.pass   { background: rgba(0,232,135,0.12);  color: var(--safe);   }
+		.trace-badge.warn   { background: rgba(255,184,0,0.12);  color: var(--warn);   }
+		.trace-badge.fail   { background: rgba(255,59,59,0.15);  color: var(--danger); }
+		.trace-badge.nodata { background: rgba(74,96,128,0.15);  color: var(--muted);  }
+
+		.trace-values {
+			padding: 4px 12px 10px;
+			display: grid; grid-template-columns: repeat(4, 1fr);
+			gap: 8px;
+		}
+		.trace-val-item { display: flex; flex-direction: column; gap: 3px; }
+		.trace-val-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+		.trace-val-num { font-family: var(--mono); font-size: 0.88rem; }
+		.trace-val-num.exceeded { color: var(--danger); font-weight: 700; }
+		.trace-val-num.warning  { color: var(--warn); }
+		.trace-val-num.ok       { color: var(--safe); }
+		.trace-val-num.neutral  { color: var(--text); }
+
+		/* progress bar inside trace */
+		.trace-bar-wrap {
+			height: 4px; background: rgba(0,0,0,0.4);
+			border-radius: 2px; overflow: hidden; margin-top: 3px;
+		}
+		.trace-bar { height: 100%; border-radius: 2px; }
+		.trace-bar.pass   { background: var(--safe); }
+		.trace-bar.warn   { background: var(--warn); }
+		.trace-bar.fail   { background: var(--danger); }
+
+		/* ─── HEADING BADGE ─── */
+		.hdg-badge {
+			background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2);
+			border-radius: 6px; padding: 10px 14px;
+			display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+			font-family: var(--mono); font-size: 0.82rem;
+		}
+		.hdg-badge-item { display: flex; flex-direction: column; gap: 2px; }
+		.hdg-badge-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+		.hdg-badge-val { color: var(--accent); }
+
+		/* ─── NO DATA BANNER ─── */
+		.no-wx-banner {
+			text-align: center; padding: 20px; color: var(--muted);
+			font-size: 0.82rem; font-weight: 600; letter-spacing: 1px;
+			text-transform: uppercase;
+		}
+
+		/* ─── ABOUT TAB ─── */
+		.about-row {
+			display: flex; justify-content: space-between; align-items: center;
+			padding: 12px 0; border-bottom: 1px solid var(--border);
+		}
+		.about-row:last-child { border-bottom: none; }
+		.about-key { color: var(--muted); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; font-size: 0.72rem; }
+		.about-val { font-family: var(--mono); color: var(--accent); font-size: 0.8rem; }
+
+		.clear-btn {
+			width: 100%; padding: 14px; border-radius: 6px;
+			border: 1px solid var(--danger); background: transparent;
+			color: var(--danger); font-family: var(--sans); font-size: 0.88rem;
+			font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+			cursor: pointer; transition: 0.2s;
+		}
+		.clear-btn:hover { background: rgba(255,59,59,0.1); }
+
+		/* ─── BOTTOM NAV ─── */
+		.bottom-nav {
+			position: fixed; bottom: 0; left: 0; right: 0; z-index: 300;
+			background: rgba(4,8,16,0.97); backdrop-filter: blur(12px);
+			border-top: 1px solid var(--border);
+			display: flex; padding: 8px 8px max(12px, env(safe-area-inset-bottom));
+			gap: 4px;
+		}
+		.nav-btn {
+			flex: 1; display: flex; flex-direction: column; align-items: center;
+			gap: 3px; padding: 6px 2px; border-radius: 6px;
+			border: 1px solid transparent; cursor: pointer; transition: 0.15s;
+			background: transparent; color: var(--muted);
+		}
+		.nav-btn.active {
+			background: rgba(0,212,255,0.07); border-color: rgba(0,212,255,0.2);
+			color: var(--accent);
+		}
+		.nav-btn-icon { font-size: 1.15rem; }
+		.nav-btn-label { font-family: var(--sans); font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+
+		/* ─── DESKTOP BANNER (hidden on mobile, shown on large screens) ─── */
+		.desktop-banner {
+			display: none; /* hidden by default on mobile */
+		}
+		@media screen and (min-width: 900px) {
+			.desktop-banner {
+				display: flex;
+				align-items: center; justify-content: space-between;
+				background: rgba(129,140,248,0.08);
+				border: 1px solid rgba(129,140,248,0.25);
+				border-radius: 8px;
+				padding: 10px 16px;
+				gap: 12px;
+				flex-shrink: 0;
+				margin: 8px 12px 0;
+			}
+			.desktop-banner-text {
+				display: flex; flex-direction: column; gap: 2px;
+			}
+			.desktop-banner-title {
+				font-size: 0.82rem; font-weight: 900;
+				letter-spacing: 1px; text-transform: uppercase;
+				color: #a5b4fc;
+			}
+			.desktop-banner-sub {
+				font-family: var(--mono); font-size: 0.65rem;
+				color: var(--muted);
+			}
+			.desktop-banner-btn {
+				font-family: var(--sans); font-size: 0.72rem; font-weight: 700;
+				letter-spacing: 1.5px; text-transform: uppercase;
+				text-decoration: none; white-space: nowrap;
+				color: #818cf8; border: 1px solid rgba(129,140,248,0.4);
+				background: rgba(129,140,248,0.08);
+				border-radius: 5px; padding: 7px 14px;
+				transition: 0.2s;
+			}
+			.desktop-banner-btn:hover {
+				background: rgba(129,140,248,0.2);
+				border-color: #a5b4fc; color: #a5b4fc;
+			}
+			/* On desktop push scroll body down to account for banner */
+			body { padding-top: 0; }
+		}
+
+		/* ─── LIVE VIEW ─── */
+		.live-layout {
+			display: grid;
+			grid-template-rows: auto 1fr auto auto;
+			gap: 6px;
+			height: calc(100dvh - 48px - 58px);
+			overflow: hidden;
+			padding: 6px 10px 0;
+		}
+
+		/* Alert strip */
+		.live-alert {
+			border-radius: 6px; padding: 8px 12px;
+			display: flex; align-items: center; gap: 10px;
+			border: 1px solid transparent; flex-shrink: 0;
+		}
+		.live-alert.safe   { background: rgba(0,232,135,0.08); border-color: rgba(0,232,135,0.25); }
+		.live-alert.warn   { background: rgba(255,184,0,0.10); border-color: rgba(255,184,0,0.35); animation: warnPulse 2s ease-in-out infinite; }
+		.live-alert.danger { background: rgba(255,59,59,0.12); border-color: rgba(255,59,59,0.5);  animation: dangerPulse 1s ease-in-out infinite; }
+		@keyframes warnPulse   { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 10px rgba(255,184,0,0.3)} }
+		@keyframes dangerPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 12px rgba(255,59,59,0.5)} }
+		.live-alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+		.live-alert.safe   .live-alert-dot { background: var(--safe); }
+		.live-alert.warn   .live-alert-dot { background: var(--warn); }
+		.live-alert.danger .live-alert-dot { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+		.live-alert-text { flex: 1; }
+		.live-alert-op   { font-size: 0.72rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #b0c8dc; }
+		.live-alert-msg  { font-size: 0.92rem; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+		.live-alert.safe   .live-alert-msg { color: var(--safe); }
+		.live-alert.warn   .live-alert-msg { color: var(--warn); }
+		.live-alert.danger .live-alert-msg { color: var(--danger); }
+		.live-alert-hdg {
+			font-family: var(--mono); font-size: 1.25rem; font-weight: 400;
+			color: var(--accent); flex-shrink: 0; text-align: right; line-height: 1.2;
+		}
+		.live-alert-hdg-sub { font-size: 0.6rem; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+
+		/* Compass centre */
+		.compass-wrap {
+			display: flex; align-items: center; justify-content: center;
+			position: relative; flex: 1; min-height: 0;
+		}
+		.compass-svg-outer {
+			width: min(56vw, 260px);
+			height: min(56vw, 260px);
+			position: relative; flex-shrink: 0;
+		}
+		.heatmap-ring-mob {
+			position: absolute; inset: 4%;
+			border-radius: 50%;
+			-webkit-mask: radial-gradient(transparent 57%, black 64%);
+			mask: radial-gradient(transparent 57%, black 64%);
+			pointer-events: none;
+			transition: background 0.3s;
+		}
+		.compass-svg-outer svg {
+			position: absolute; inset: 0; width: 100%; height: 100%;
+		}
+
+		/* Side readouts flanking compass */
+		.compass-side {
+			display: flex; flex-direction: column; justify-content: center;
+			gap: 6px; padding: 0 6px; min-width: 80px;
+		}
+		.cs-item { display: flex; flex-direction: column; gap: 1px; }
+		.cs-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #a0b8cc; }
+		.cs-val   { font-family: var(--mono); font-size: 0.88rem; }
+		.cs-val.wind  { color: var(--c-wind); }
+		.cs-val.sea   { color: var(--c-sea); }
+		.cs-val.swell { color: var(--c-swell); }
+		.cs-val.curr  { color: var(--c-curr); }
+		.cs-val.hdg   { color: var(--safe); }
+
+		/* Heading readout below compass */
+		.hdg-display {
+			text-align: center; flex-shrink: 0; padding: 0 0 2px;
+		}
+		.hdg-big {
+			font-family: var(--mono); font-size: 2.4rem; line-height: 1;
+			color: var(--safe); text-shadow: 0 0 20px rgba(0,232,135,0.35);
+		}
+		.hdg-sub {
+			font-size: 0.68rem; font-weight: 700; letter-spacing: 2px;
+			text-transform: uppercase; color: #a8c0d4; margin-top: 1px;
+		}
+
+		/* ─── TIMELINE ─── */
+		.live-timeline {
+			flex-shrink: 0; padding-bottom: 4px;
+			display: flex; flex-direction: column; gap: 5px;
+		}
+		.sim-row {
+			display: flex; gap: 5px; align-items: center;
+		}
+		.sim-btn {
+			flex: 1; padding: 7px 4px; border-radius: 5px;
+			border: 1px solid var(--border); background: transparent;
+			color: var(--muted); font-family: var(--sans);
+			font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+			text-transform: uppercase; cursor: pointer; transition: 0.15s;
+			text-align: center;
+		}
+		.sim-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.06); }
+		.sim-btn.play   { border-color: var(--safe);   color: var(--safe);   background: rgba(0,232,135,0.06); flex: 2; }
+		.sim-btn.pause  { border-color: var(--warn);   color: var(--warn);   background: rgba(255,184,0,0.06); flex: 2; }
+
+		.task-header-row {
+			display: flex; justify-content: space-between; align-items: center;
+		}
+		.tl-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #a0b8cc; }
+		.tl-tplus { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+		.tl-dates { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.6rem; color: #a0b8cc; }
+
+		.task-nav-row { display: flex; align-items: stretch; gap: 5px; }
+		.task-nav-btn {
+			width: 40px; flex-shrink: 0;
+			border: 1px solid var(--border); background: var(--card);
+			color: var(--muted); border-radius: 6px; cursor: pointer;
+			font-size: 1.3rem; transition: 0.15s;
+			display: flex; align-items: center; justify-content: center;
+		}
+		.task-nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.06); }
+		.task-nav-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+		.task-block-wrap {
+			flex: 1; position: relative; overflow: hidden;
+			border-radius: 8px; height: 76px;
+			touch-action: none; cursor: ew-resize; user-select: none;
+		}
+		.task-scrub-fill {
+			position: absolute; top: 0; left: 0; height: 100%;
+			background: rgba(0,212,255,0.07); border-radius: 8px 0 0 8px;
+			pointer-events: none; z-index: 0;
+			/* No transition — must follow finger instantly */
+		}
+		.task-block-wrap.dragging .task-scrub-fill { background: rgba(0,212,255,0.14); }
+		.task-block-wrap.dragging .task-block { border-color: rgba(0,212,255,0.45); }
+		.task-block-wrap::after {
+			content: '⟺';
+			position: absolute; bottom: 5px; right: 9px;
+			font-size: 0.6rem; color: rgba(0,212,255,0.25); pointer-events: none;
+		}
+		.task-block-wrap.dragging::after { color: rgba(0,212,255,0.7); }
+
+		.tide-canvas-overlay {
+			position: absolute; inset: 0; width: 100%; height: 100%;
+			border-radius: 8px; pointer-events: none; opacity: 0.35; z-index: 0;
+		}
+
+		.task-block {
+			position: absolute; inset: 0; z-index: 1;
+			border-radius: 8px; padding: 9px 14px 14px;
+			display: flex; flex-direction: column; justify-content: center; gap: 3px;
+			border: 1px solid var(--border); background: var(--card);
+			transition: transform 0.28s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease, border-color 0.15s;
+		}
+		.task-block.slide-out-left  { transform: translateX(-110%); opacity: 0; pointer-events: none; }
+		.task-block.slide-out-right { transform: translateX(110%);  opacity: 0; pointer-events: none; }
+		.task-block.slide-in-left   { transform: translateX(-110%); opacity: 0; pointer-events: none; }
+		.task-block.slide-in-right  { transform: translateX(110%);  opacity: 0; pointer-events: none; }
+		.task-block.visible         { transform: translateX(0);      opacity: 1; }
+		.task-block.pass-block   { border-left: 4px solid var(--safe);   background: rgba(0,232,135,0.03); }
+		.task-block.warn-block   { border-left: 4px solid var(--warn);   background: rgba(255,184,0,0.03); }
+		.task-block.fail-block   { border-left: 4px solid var(--danger); background: rgba(255,59,59,0.04); }
+		.task-block.active-block { border-left: 4px solid var(--accent); }
+		.task-block.none-block   { border-left: 4px solid var(--border); }
+		.task-block.done-block   { border-left: 4px solid #334155; background: rgba(20,30,50,0.6); opacity: 0.6; }
+		.done-block .task-block-name    { text-decoration: line-through; color: var(--muted); }
+		.done-block .task-block-verdict { background: rgba(51,65,85,0.3); color: #4a6080; }
+
+		.task-block-name {
+			font-size: 0.95rem; font-weight: 900; text-transform: uppercase;
+			letter-spacing: 1px; color: var(--text);
+			white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+		}
+		.task-block-meta { display: flex; gap: 10px; align-items: center; }
+		.task-block-dur     { font-family: var(--mono); font-size: 0.7rem; color: #b0c4d8; }
+		.task-block-hdg     { font-family: var(--mono); font-size: 0.7rem; color: var(--accent); }
+		.task-block-verdict {
+			font-size: 0.6rem; font-weight: 700; letter-spacing: 2px;
+			text-transform: uppercase; padding: 2px 7px; border-radius: 3px; margin-left: auto;
+		}
+		.pass-block   .task-block-verdict { background: rgba(0,232,135,0.12); color: var(--safe);   }
+		.warn-block   .task-block-verdict { background: rgba(255,184,0,0.12);  color: var(--warn);   }
+		.fail-block   .task-block-verdict { background: rgba(255,59,59,0.15);  color: var(--danger); }
+		.active-block .task-block-verdict { background: rgba(0,212,255,0.12);  color: var(--accent); }
+		.none-block   .task-block-verdict { background: rgba(74,96,128,0.1);   color: #8ba3c0;       }
+		.task-progress-wrap {
+			position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
+			height: 2px; background: transparent; border-radius: 0 0 8px 8px;
+		}
+		.task-progress-bar {
+			height: 100%; border-radius: 0 0 8px 8px;
+			background: var(--accent);
+			box-shadow: 0 0 4px rgba(0,212,255,0.7);
+		}
+
+		/* ─── CONTROLS BANNER ─── */
+		.controls-banner {
+			display: flex; align-items: center; gap: 5px;
+			background: rgba(8,15,30,0.95);
+			border: 1px solid var(--border); border-radius: 8px;
+			padding: 5px 10px;
+		}
+		.ctrl-group { display: flex; align-items: center; gap: 3px; flex: 1; }
+		.ctrl-label {
+			font-size: 0.56rem; font-weight: 700; letter-spacing: 1.5px;
+			text-transform: uppercase; color: #a0b8cc; white-space: nowrap;
+		}
+		.ctrl-btn {
+			width: 24px; height: 24px; border-radius: 4px;
+			border: 1px solid var(--border); background: rgba(0,0,0,0.3);
+			color: #a0b8cc; cursor: pointer; font-size: 0.82rem;
+			display: flex; align-items: center; justify-content: center;
+			transition: 0.15s; flex-shrink: 0;
+		}
+		.ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+		.ctrl-val-hdg {
+			font-family: var(--mono); font-size: 0.85rem; color: var(--accent);
+			min-width: 38px; text-align: center; font-weight: 700;
+		}
+		.ctrl-val-tol {
+			font-family: var(--mono); font-size: 0.85rem; color: var(--safe);
+			min-width: 34px; text-align: center; font-weight: 700;
+		}
+		.ctrl-divider { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+		.ctrl-icon-btn {
+			width: 28px; height: 28px; border-radius: 5px;
+			border: 1px solid var(--border); background: rgba(0,0,0,0.3);
+			color: #8ba3c0; cursor: pointer; font-size: 0.85rem;
+			display: flex; align-items: center; justify-content: center;
+			transition: 0.15s; flex-shrink: 0;
+		}
+		.ctrl-icon-btn:hover  { border-color: var(--accent); color: var(--accent); }
+		.ctrl-icon-btn.locked { border-color: var(--safe);   color: var(--safe);   }
+		.ctrl-icon-btn.active { border-color: var(--warn);   color: var(--warn);   }
+		/* No-plan overlay */
+		.no-plan-overlay {
+			position: absolute; inset: 0; display: flex;
+			flex-direction: column; align-items: center; justify-content: center;
+			gap: 10px; background: rgba(4,8,16,0.92); border-radius: 8px;
+			z-index: 50;
+		}
+		.no-plan-overlay p { font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); text-align: center; }
+
+		/* ─── FULLSCREEN RESULT DETAIL OVERLAY ─── */
+		.result-fullscreen {
+			position: fixed; inset: 0; z-index: 9000;
+			background: var(--bg);
+			display: flex; flex-direction: column;
+			height: 100%; max-height: 100dvh;
+			transform: translateY(100%);
+			transition: transform 0.32s cubic-bezier(0.4,0,0.2,1);
+			overflow: hidden;
+		}
+		.result-fullscreen.open { transform: translateY(0); }
+
+		.rfs-header {
+			display: flex; align-items: center; gap: 12px;
+			padding: 14px 16px; flex-shrink: 0;
+			border-bottom: 1px solid var(--border);
+			background: var(--panel);
+		}
+		.rfs-dot    { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+		.rfs-title-wrap { flex: 1; min-width: 0; }
+		.rfs-op-name {
+			font-size: 1rem; font-weight: 900; text-transform: uppercase;
+			letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+		}
+		.rfs-op-meta { font-family: var(--mono); font-size: 0.65rem; color: #b8ccdc; margin-top: 2px; }
+		.rfs-verdict {
+			font-size: 0.65rem; font-weight: 700; letter-spacing: 2px;
+			text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+			flex-shrink: 0; white-space: nowrap;
+		}
+		.rfs-close {
+			width: 36px; height: 36px; border-radius: 50%;
+			border: 1px solid var(--border); background: var(--card);
+			color: var(--muted); cursor: pointer;
+			display: flex; align-items: center; justify-content: center;
+			font-size: 1rem; flex-shrink: 0; transition: 0.15s;
+		}
+		.rfs-close:hover, .rfs-close:active { border-color: var(--danger); color: var(--danger); }
+
+		/* Scrollable body — enforced, no bleed */
+		.rfs-body {
+			flex: 1;
+			min-height: 0;
+			overflow-y: scroll;
+			overflow-x: hidden;
+			-webkit-overflow-scrolling: touch;
+			padding: 12px 14px 16px;
+			display: flex; flex-direction: column; gap: 10px;
+		}
+
+		.rfs-segment {
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			word-break: break-word;
+			overflow: visible;
+		}
+		.rfs-seg-header {
+			padding: 10px 14px; background: rgba(0,0,0,0.25);
+			border-bottom: 1px solid var(--border);
+			display: flex; justify-content: space-between;
+			align-items: flex-start; gap: 8px; flex-wrap: wrap;
+		}
+		.rfs-seg-time { font-family: var(--mono); font-size: 0.72rem; color: #b0c4d8; line-height: 1.7; }
+		.rfs-seg-wx   { font-family: var(--mono); font-size: 0.72rem; line-height: 1.9; color: #d0e0ec; }
+		.rfs-seg-verdict {
+			font-size: 0.62rem; font-weight: 700; letter-spacing: 1.5px;
+			text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+			flex-shrink: 0; align-self: flex-start;
+		}
+		.rfs-seg-verdict.pass   { background: rgba(0,232,135,0.1);  color: var(--safe);   }
+		.rfs-seg-verdict.warn   { background: rgba(255,184,0,0.1);  color: var(--warn);   }
+		.rfs-seg-verdict.fail   { background: rgba(255,59,59,0.15); color: var(--danger); }
+		.rfs-seg-verdict.nodata { background: rgba(74,96,128,0.15); color: var(--muted);  }
+
+		.rfs-hdg-row {
+			padding: 8px 14px; display: flex; gap: 0; flex-wrap: wrap;
+			border-bottom: 1px solid var(--border);
+			background: rgba(0,212,255,0.03);
+		}
+		.rfs-hdg-item  { display: flex; flex-direction: column; gap: 2px; padding: 4px 14px 4px 0; }
+		.rfs-hdg-label { font-size: 0.55rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #aac0d4; }
+		.rfs-hdg-val   { font-family: var(--mono); font-size: 1.0rem; color: var(--accent); font-weight: 700; }
+
+		.rfs-trace-rows  { padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+		.rfs-trace-row   {
+			background: rgba(0,0,0,0.25);
+			border-radius: 6px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+		}
+		.rfs-trace-header { padding: 8px 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+		.rfs-trace-ref   { font-size: 0.95rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+		.rfs-trace-class { font-size: 0.75rem; color: #c8d8e8; letter-spacing: 0.5px; margin-top: 2px; font-weight: 600; }
+		.rfs-trace-badge {
+			font-size: 0.65rem; font-weight: 700; letter-spacing: 1px;
+			text-transform: uppercase; padding: 3px 9px; border-radius: 3px;
+			flex-shrink: 0; white-space: nowrap;
+		}
+		.rfs-trace-badge.pass   { background: rgba(0,232,135,0.12); color: var(--safe);   }
+		.rfs-trace-badge.warn   { background: rgba(255,184,0,0.12);  color: var(--warn);   }
+		.rfs-trace-badge.fail   { background: rgba(255,59,59,0.15);  color: var(--danger); }
+		.rfs-trace-badge.nodata { background: rgba(74,96,128,0.15);  color: var(--muted);  }
+
+		.rfs-trace-values {
+			padding: 6px 12px 10px;
+			display: grid; grid-template-columns: repeat(4,1fr); gap: 8px;
+		}
+		.rfs-val-item  { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+		.rfs-val-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #c0d4e8; }
+		.rfs-val-num   { font-family: var(--mono); font-size: 1.05rem; overflow: hidden; text-overflow: ellipsis; }
+		.rfs-val-num.exceeded { color: var(--danger); font-weight: 700; }
+		.rfs-val-num.warning  { color: var(--warn); }
+		.rfs-val-num.ok       { color: var(--safe); }
+		.rfs-val-num.neutral  { color: var(--text); }
+		.rfs-bar-wrap { height: 5px; background: rgba(0,0,0,0.4); border-radius: 3px; overflow: hidden; margin-top: 4px; }
+		.rfs-bar      { height: 100%; border-radius: 2px; }
+		.rfs-bar.pass   { background: var(--safe); }
+		.rfs-bar.warn   { background: var(--warn); }
+		.rfs-bar.fail   { background: var(--danger); }
+
+		/* ─── TOAST ─── */
+		.toast {
+			position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+			background: rgba(0,232,135,0.15); border: 1px solid var(--safe);
+			color: var(--safe); font-family: var(--mono); font-size: 0.7rem;
+			padding: 8px 16px; border-radius: 20px; z-index: 9999;
+			white-space: nowrap; pointer-events: none;
+			opacity: 0; transition: opacity 0.3s;
+		}
+		.toast.show { opacity: 1; }
+		.toast.error { background: rgba(255,59,59,0.15); border-color: var(--danger); color: var(--danger); }
+	</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+	<div class="topbar-brand">
+		<div class="topbar-title">WxPlanner Field</div>
+		<div class="topbar-sub" id="plan-sub">NO PLAN LOADED</div>
+	</div>
+	<div class="topbar-right">
+		<div class="clock-badge" id="live-clock">--:-- UTC</div>
+		<a href="WeatherPlannerPro_fixed.html"
+			onclick="sessionStorage.setItem('wxplanner_manual','1')"
+			class="desktop-topbar-btn"
+			title="Switch to Desktop Planner">
+			🖥️ Desktop
+		</a>
+	</div>
+</div>
+
+<!-- Desktop banner — only visible on large screens -->
+<div class="desktop-banner">
+	<div class="desktop-banner-text">
+		<div class="desktop-banner-title">🖥️ Looks like you're on a desktop</div>
+		<div class="desktop-banner-sub">This is the mobile Field View — the full planning suite has more tools</div>
+	</div>
+	<a href="WeatherPlannerPro_fixed.html"
+		onclick="sessionStorage.setItem('wxplanner_manual','1')"
+		class="desktop-banner-btn">
+		Open Desktop Planner →
+	</a>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!--  PAGE 1 — LOAD                          -->
+<!-- ════════════════════════════════════════ -->
+<div class="page active" id="page-load">
+
+	<div class="sec">Mission Plan</div>
+	<div class="load-zone" id="plan-drop-zone">
+		<input type="file" id="plan-file-input" accept=".csv,.txt,.json">
+		<div class="load-icon">📁</div>
+		<div class="load-title">Load Plan File</div>
+		<div class="load-sub">Tap to select .txt exported from desktop</div>
+	</div>
+
+	<div id="plan-loaded-info" style="display:none">
+		<div class="load-plan-info">
+			<div class="load-plan-icon">✅</div>
+			<div>
+				<div class="load-plan-name" id="plan-loaded-name">—</div>
+				<div class="load-plan-meta" id="plan-loaded-meta">—</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="sec">Weather Forecast</div>
+	<div class="wx-import-row">
+		<div class="wx-import-btn" id="wx-main-btn">
+			<input type="file" id="wx-main-input" accept=".csv,.txt">
+			<div class="wx-import-icon">⛅</div>
+			<div class="wx-import-label">StormGeo<br>Weather</div>
+			<div class="wx-import-count" id="wx-main-count">—</div>
+		</div>
+		<div class="wx-import-btn" id="wx-curr-btn">
+			<input type="file" id="wx-curr-input" accept=".csv,.txt">
+			<div class="wx-import-icon">🌊</div>
+			<div class="wx-import-label">StormGeo<br>Currents</div>
+			<div class="wx-import-count" id="wx-curr-count">—</div>
+		</div>
+		<div class="wx-import-btn" id="wx-tide-btn">
+			<input type="file" id="wx-tide-input" accept=".txt,.csv">
+			<div class="wx-import-icon">📈</div>
+			<div class="wx-import-label">Tidal<br>Data</div>
+			<div class="wx-import-count" id="wx-tide-count">—</div>
+		</div>
+	</div>
+
+	<div id="wx-bucket-row" style="display:none">
+		<div class="card" style="display:flex; align-items:center; gap:12px; padding:10px 14px;">
+			<div style="font-size:0.65rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#b0c4d8; white-space:nowrap;">Block Duration</div>
+			<input type="number" id="bucket-size" value="6" min="1" max="24" step="0.5"
+				style="flex:1; background:#020617; border:1px solid var(--border); color:#fff; padding:6px 8px; border-radius:4px; font-size:0.85rem; font-family:var(--mono);">
+			<div style="font-size:0.65rem; color:#b0c4d8;">hrs</div>
+		</div>
+		<div class="card" style="display:flex; align-items:center; gap:12px; padding:10px 14px; margin-top:6px;">
+			<div style="font-size:0.65rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#b0c4d8; white-space:nowrap;">Max Forecast Age</div>
+			<input type="number" id="forecast-age-limit" value="24" min="6" max="120" step="6"
+				style="flex:1; background:#020617; border:1px solid var(--border); color:#fff; padding:6px 8px; border-radius:4px; font-size:0.85rem; font-family:var(--mono);"
+				onchange="checkForecastAge()">
+			<div style="font-size:0.65rem; color:#b0c4d8;">hrs</div>
+		</div>
+		<div id="forecast-age-banner" style="display:none; border-radius:6px; padding:8px 14px; margin-top:6px; font-size:0.78rem; font-weight:700; letter-spacing:1px; text-align:center;"></div>
+	</div>
+
+	<button class="run-btn" id="run-btn" disabled onclick="runAnalysis()">
+		▶ RUN ANALYSIS
+	</button>
+
+	<div class="action-row">
+		<button class="action-btn save-btn" onclick="savePlan()">💾 Save Plan</button>
+		<button class="action-btn export-btn" onclick="exportSummary()">📤 Export Summary</button>
+	</div>
+
+	<div id="tide-sparkline-card" style="display:none;">
+		<div class="sec">Tidal Profile</div>
+		<div class="card" style="padding:12px 16px;">
+			<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+				<div style="font-family:var(--mono); font-size:0.72rem; color:#b0c4d8;" id="tide-meta-label">—</div>
+				<div style="font-family:var(--mono); font-size:0.72rem; color:#2dd4bf;" id="tide-range-label">—</div>
+			</div>
+			<canvas id="tide-canvas" height="70" style="width:100%; display:block; border-radius:4px;"></canvas>
+		</div>
+	</div>
+
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!--  PAGE 2 — LIVE VIEW                     -->
+<!-- ════════════════════════════════════════ -->
+<div class="page" id="page-live" style="padding:0; gap:0;">
+	<div class="live-layout" id="live-layout">
+
+		<!-- No-plan overlay -->
+		<div class="no-plan-overlay" id="live-no-plan">
+			<div style="font-size:2.5rem">⚓</div>
+			<p>Load a plan and<br>weather forecast first</p>
+			<button class="sim-btn active" style="width:160px;" onclick="showPage('load')">GO TO LOAD</button>
+		</div>
+
+		<!-- Alert strip -->
+		<div class="live-alert safe" id="live-alert">
+			<div class="live-alert-dot"></div>
+			<div class="live-alert-text">
+				<div class="live-alert-op" id="live-op-name">NO ACTIVE TASK</div>
+				<div class="live-alert-msg" id="live-alert-msg">ALL CLEAR</div>
+			</div>
+			<div class="live-alert-hdg">
+				<div id="live-hdg-big">---°</div>
+				<div class="live-alert-hdg-sub">HEADING</div>
+			</div>
+		</div>
+
+		<!-- Compass + side readouts -->
+		<div class="compass-wrap">
+			<!-- LEFT: Wind + Sea -->
+			<div class="compass-side" style="align-items:flex-end;">
+				<div class="cs-item">
+					<div class="cs-label">Wind</div>
+					<div class="cs-val wind" id="cs-wind">--k/---°</div>
+				</div>
+				<div class="cs-item">
+					<div class="cs-label">Sea Hs</div>
+					<div class="cs-val sea" id="cs-sea">-.-m/--s</div>
+				</div>
+			</div>
+
+			<!-- COMPASS -->
+			<div class="compass-svg-outer" id="compass-outer">
+				<!-- Heatmap ring -->
+				<div class="heatmap-ring-mob" id="mob-heatmap"></div>
+
+				<svg id="mob-compass-svg" viewBox="0 0 300 300">
+					<!-- Rings -->
+					<circle cx="150" cy="150" r="140" fill="none" stroke="#1a2d4a" stroke-width="1.5"/>
+					<circle cx="150" cy="150" r="90"  fill="none" stroke="#1a2d4a" stroke-width="1" stroke-dasharray="3,3"/>
+					<circle cx="150" cy="150" r="42"  fill="none" stroke="#1a2d4a" stroke-width="1" stroke-dasharray="2,4"/>
+					<!-- Cardinal ticks -->
+					<line x1="150" y1="10"  x2="150" y2="22"  stroke="#2a4060" stroke-width="2"/>
+					<line x1="150" y1="278" x2="150" y2="290" stroke="#2a4060" stroke-width="1.5"/>
+					<line x1="10"  y1="150" x2="22"  y2="150" stroke="#2a4060" stroke-width="1.5"/>
+					<line x1="278" y1="150" x2="290" y2="150" stroke="#2a4060" stroke-width="1.5"/>
+					<!-- N label -->
+					<text x="150" y="9" fill="#3a5070" font-size="10" text-anchor="middle" font-family="Share Tech Mono,monospace">N</text>
+
+					<!-- Tolerance arc -->
+					<path id="mob-tol-arc" fill="rgba(0,232,135,0.07)" stroke="none" d=""/>
+					<line id="mob-tol-left"  x1="150" y1="150" x2="150" y2="10" stroke="#00e887" stroke-width="1" opacity="0.4" stroke-dasharray="3,3"/>
+					<line id="mob-tol-right" x1="150" y1="150" x2="150" y2="10" stroke="#00e887" stroke-width="1" opacity="0.4" stroke-dasharray="3,3"/>
+
+					<!-- Vessel shape -->
+					<g id="mob-vessel" transform="rotate(0,150,150)">
+						<polygon points="138,230 138,110 150,68 162,110 162,230" fill="none" stroke="#cbd5e1" stroke-width="1.5"/>
+						<circle cx="150" cy="150" r="3" fill="#cbd5e1"/>
+					</g>
+
+					<!-- Wind arrow -->
+					<g id="mob-arr-wind" transform="rotate(0,150,150)">
+						<polygon points="143,24 157,24 150,4"  fill="#ff5555" stroke="#000" stroke-width="0.5"/>
+						<text x="150" y="42" fill="#ff5555" font-size="9" text-anchor="middle" font-family="Share Tech Mono,monospace">WND</text>
+					</g>
+					<!-- Sea arrow -->
+					<g id="mob-arr-sea" transform="rotate(0,150,150)">
+						<polygon points="143,24 157,24 150,4"  fill="#38bdf8" stroke="#000" stroke-width="0.5"/>
+						<text x="150" y="42" fill="#38bdf8" font-size="9" text-anchor="middle" font-family="Share Tech Mono,monospace">SEA</text>
+					</g>
+					<!-- Swell arrow -->
+					<g id="mob-arr-swell" transform="rotate(0,150,150)">
+						<polygon points="143,24 157,24 150,4"  fill="#818cf8" stroke="#000" stroke-width="0.5"/>
+						<text x="150" y="42" fill="#818cf8" font-size="9" text-anchor="middle" font-family="Share Tech Mono,monospace">SWL</text>
+					</g>
+					<!-- Current arrow -->
+					<g id="mob-arr-curr" transform="rotate(0,150,150)">
+						<polygon points="143,24 157,24 150,4"  fill="#e879f9" stroke="#000" stroke-width="0.5"/>
+						<text x="150" y="42" fill="#e879f9" font-size="9" text-anchor="middle" font-family="Share Tech Mono,monospace">CUR</text>
+					</g>
+
+					<!-- Target heading line -->
+					<line id="mob-tgt-line" x1="150" y1="150" x2="150" y2="10"
+						stroke="#00e887" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7"/>
+				</svg>
+			</div>
+
+			<!-- RIGHT: Swell + Current -->
+			<div class="compass-side" style="align-items:flex-start;">
+				<div class="cs-item">
+					<div class="cs-label">Swell</div>
+					<div class="cs-val swell" id="cs-swell">-.-m/--s</div>
+				</div>
+				<div class="cs-item">
+					<div class="cs-label">Current</div>
+					<div class="cs-val curr" id="cs-curr">-.-k/---°</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Heading display -->
+		<div class="hdg-display">
+			<div class="hdg-big" id="live-hdg-display">000°</div>
+			<div class="hdg-sub" id="live-hdg-sub">VESSEL HEADING — TGT: ---° ±--°</div>
+		</div>
+
+		<!-- Timeline -->
+		<div class="live-timeline">
+
+			<!-- 1. Controls banner: HDG · TOL · Lock · Reset (above timeline for visual sync with compass) -->
+			<div class="controls-banner">
+				<div class="ctrl-group">
+					<span class="ctrl-label">HDG</span>
+					<button class="ctrl-btn" onclick="adjustHdg(-5)">−</button>
+					<div class="ctrl-val-hdg" id="adj-hdg-val">---°</div>
+					<button class="ctrl-btn" onclick="adjustHdg(5)">+</button>
+				</div>
+				<div class="ctrl-divider"></div>
+				<div class="ctrl-group">
+					<span class="ctrl-label">TOL</span>
+					<button class="ctrl-btn" onclick="adjustTol(-5)">−</button>
+					<div class="ctrl-val-tol" id="adj-tol-val">±--°</div>
+					<button class="ctrl-btn" onclick="adjustTol(5)">+</button>
+				</div>
+				<div class="ctrl-divider"></div>
+				<button class="ctrl-icon-btn" id="hdg-lock-btn" onclick="lockHeading()" title="Lock heading">🔒</button>
+				<button class="ctrl-icon-btn" id="hdg-reset-btn" onclick="resetHdgOverride()" title="Reset to plan">↺</button>
+			</div>
+
+			<!-- 2. Sim controls -->
+			<div class="sim-row">
+				<button class="sim-btn" id="sim-speed-btn" onclick="toggleSimSpeed()">1.0× SPD</button>
+				<button class="sim-btn active" id="sim-loop-btn" onclick="toggleSimLoop()">🔁 LOOP</button>
+				<button class="sim-btn play" id="sim-play-btn" onclick="toggleSim()">▶ PLAY</button>
+			</div>
+
+			<!-- 3. Task label + T+ -->
+			<div class="task-header-row">
+				<div class="tl-label">TASK</div>
+				<div class="tl-tplus" id="live-tplus">T+ 00:00</div>
+			</div>
+
+			<!-- 4. Prev / Task block (scrubber) / Next -->
+			<div class="task-nav-row">
+				<button class="task-nav-btn" id="task-prev-btn" onclick="stepTask(-1)" disabled>‹</button>
+				<div class="task-block-wrap" id="task-block-wrap">
+					<canvas class="tide-canvas-overlay" id="task-tide-canvas"></canvas>
+					<div class="task-scrub-fill" id="tb-scrub-fill"></div>
+					<div class="task-block none-block visible" id="task-block-current">
+						<div class="task-block-name" id="tb-name">NO TASK LOADED</div>
+						<div class="task-block-meta">
+							<span class="task-block-dur"     id="tb-dur">—</span>
+							<span class="task-block-hdg"     id="tb-hdg">—</span>
+							<span class="task-block-verdict" id="tb-verdict">—</span>
+						</div>
+						<div class="task-progress-wrap">
+							<div class="task-progress-bar" id="tb-progress" style="width:0%"></div>
+						</div>
+					</div>
+				</div>
+				<button class="task-nav-btn" id="task-next-btn" onclick="stepTask(1)" disabled>›</button>
+			</div>
+
+			<!-- 5. Date span -->
+			<div class="tl-dates">
+				<span id="tl-t0">--/-- --:--</span>
+				<span id="tl-mid">+12h</span>
+				<span id="tl-end">+24h</span>
+			</div>
+
+		</div>
+
+	</div><!-- end live-layout -->
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!--  FULLSCREEN RESULT DETAIL OVERLAY       -->
+<!-- ════════════════════════════════════════ -->
+<div class="result-fullscreen" id="result-fullscreen">
+	<div class="rfs-header">
+		<div class="rfs-dot" id="rfs-dot"></div>
+		<div class="rfs-title-wrap">
+			<div class="rfs-op-name" id="rfs-op-name">—</div>
+			<div class="rfs-op-meta" id="rfs-op-meta">—</div>
+		</div>
+		<div class="rfs-verdict" id="rfs-verdict">—</div>
+		<button class="rfs-close" onclick="closeResultFullscreen()" title="Close">✕</button>
+	</div>
+	<div class="rfs-body" id="rfs-body"></div>
+	<div style="padding:10px 14px; border-top:1px solid var(--border); background:var(--panel); flex-shrink:0;">
+		<button id="rfs-complete-btn" style="width:100%; padding:12px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:var(--sans); font-size:0.82rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; cursor:pointer; transition:0.2s;" onclick="toggleTaskComplete()">
+			✓ MARK COMPLETE
+		</button>
+	</div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!--  PAGE 3 — RESULTS                       -->
+<!-- ════════════════════════════════════════ -->
+<div class="page" id="page-results">
+
+	<div class="sec">Analysis Summary</div>
+	<div class="results-summary">
+		<div class="summary-cell s-pass">
+			<div class="summary-count" id="res-pass-count">0</div>
+			<div class="summary-label">Pass</div>
+		</div>
+		<div class="summary-cell s-warn">
+			<div class="summary-count" id="res-warn-count">0</div>
+			<div class="summary-label">Warning</div>
+		</div>
+		<div class="summary-cell s-fail">
+			<div class="summary-count" id="res-fail-count">0</div>
+			<div class="summary-label">Failed</div>
+		</div>
+	</div>
+
+	<div class="card" id="wx-window-card" style="display:none">
+		<div style="font-size:0.68rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#b0c4d8; margin-bottom:6px;">Forecast Window</div>
+		<div style="font-family:var(--mono); font-size:0.75rem; color:var(--accent);" id="wx-window-text">—</div>
+	</div>
+
+	<div class="sec">Operations — Tap for Full Detail</div>
+	<div id="results-list"></div>
+
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!--  PAGE 3 — ABOUT / SETTINGS              -->
+<!-- ════════════════════════════════════════ -->
+<div class="page" id="page-about">
+
+	<div class="sec">Loaded Plan</div>
+	<div class="card">
+		<div class="about-row"><span class="about-key">Project</span>   <span class="about-val" id="ab-project">—</span></div>
+		<div class="about-row"><span class="about-key">Operations</span><span class="about-val" id="ab-ops">—</span></div>
+		<div class="about-row"><span class="about-key">Analysis Refs</span><span class="about-val" id="ab-refs">—</span></div>
+		<div class="about-row"><span class="about-key">Mission Start</span><span class="about-val" id="ab-start">—</span></div>
+		<div class="about-row"><span class="about-key">WX Blocks</span>  <span class="about-val" id="ab-wx">—</span></div>
+		<div class="about-row"><span class="about-key">Curr Records</span><span class="about-val" id="ab-curr">—</span></div>
+		<div class="about-row"><span class="about-key">Tide Points</span> <span class="about-val" id="ab-tide">—</span></div>
+	</div>
+
+	<div class="sec">App Info</div>
+	<div class="card">
+		<div class="about-row"><span class="about-key">Version</span>      <span class="about-val">1.0.0-field</span></div>
+		<div class="about-row"><span class="about-key">Companion to</span> <span class="about-val">WxPlanner Desktop</span></div>
+		<div class="about-row"><span class="about-key">Plan Format</span>  <span class="about-val">WxPlanner CSV v2</span></div>
+	</div>
+
+	<div class="sec">Session</div>
+	<button class="clear-btn" onclick="clearSession()">🗑 Clear All Data &amp; Reset</button>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+	<div class="nav-btn active" id="nav-load" onclick="showPage('load')">
+		<div class="nav-btn-icon">📁</div>
+		<div class="nav-btn-label">Load</div>
+	</div>
+	<div class="nav-btn" id="nav-live" onclick="showPage('live')">
+		<div class="nav-btn-icon">🧭</div>
+		<div class="nav-btn-label">Live</div>
+	</div>
+	<div class="nav-btn" id="nav-results" onclick="showPage('results')">
+		<div class="nav-btn-icon">📊</div>
+		<div class="nav-btn-label">Results</div>
+	</div>
+	<div class="nav-btn" id="nav-about" onclick="showPage('about')">
+		<div class="nav-btn-icon">⚙️</div>
+		<div class="nav-btn-label">Info</div>
+	</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════
+// CONSTANTS  (mirrors desktop app)
+// ═══════════════════════════════════════════════════
+const WARN_THRESHOLD = 0.8;
+const MAX_MATRIX_TP  = 12;
+const HDG_BUCKETS    = 12;
+const MS_PER_HOUR    = 3600000;
+
+// ═══════════════════════════════════════════════════
+// STATE — add tide
+// ═══════════════════════════════════════════════════
+let state = {
+	projectName:  null,
+	missionStart: null,
+	ops:          [],
+	orcaData:     {},
+	wx:           [],
+	curr:         [],
+	tide:         [],
+	wxRaw:        [],
+	bucketSize:   6,
+};
+
+// ═══════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════
+function updateClock() {
+	const now = new Date();
+	const pad = n => String(n).padStart(2,'0');
+	document.getElementById('live-clock').textContent =
+		`${pad(now.getUTCHours())}:${pad(now.getUTCMinutes())} UTC`;
+}
+updateClock();
+setInterval(updateClock, 15000);
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+function showPage(name) {
+	document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+	document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+	document.getElementById('page-' + name).classList.add('active');
+	document.getElementById('nav-' + name).classList.add('active');
+	// Redraw tide canvas when live view becomes visible (needs layout)
+	if (name === 'live') requestAnimationFrame(() => requestAnimationFrame(drawTaskTideCanvas));
+}
+
+// ═══════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════
+let toastTimer;
+function toast(msg, isError = false) {
+	const el = document.getElementById('toast');
+	el.textContent = msg;
+	el.className = 'toast show' + (isError ? ' error' : '');
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ═══════════════════════════════════════════════════
+// PLAN FILE LOADER
+// ═══════════════════════════════════════════════════
+document.getElementById('plan-file-input').addEventListener('change', function(e) {
+	const file = e.target.files[0];
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = ev => loadPlanFromText(ev.target.result, file.name);
+	reader.readAsText(file);
+	e.target.value = '';
+});
+
+function loadPlanFromText(text, fileName) {
+	try {
+		const trimmed = text.trim();
+
+		// ── CSV format (WxPlanner Plan v2) ──
+		if (trimmed.startsWith('# WxPlanner Plan')) {
+			loadMobilePlanCSV(trimmed, fileName);
+			return;
+		}
+
+		// ── Legacy JSON (OpsPlannerMasterV2) ──
+		const data = JSON.parse(trimmed);
+		if (data.fileType !== 'OpsPlannerMasterV2') {
+			toast('Not a valid WxPlanner plan file', true); return;
+		}
+
+		state.projectName  = data.projectName || fileName;
+		state.missionStart = data.missionStart ? new Date(data.missionStart) : null;
+		state.ops          = data.operations   || [];
+		state.tide         = data.tideData     || [];
+		state.orcaData     = {};
+
+		const lib = data.analysisLibrary || {};
+		for (const key in lib) {
+			const entry = lib[key];
+			if (entry && typeof entry === 'object') {
+				if (entry['WAVE_HS_BY_TP']) {
+					state.orcaData[key] = entry['WAVE_HS_BY_TP'];
+				} else if (entry['SWELL_HS_BY_TS']) {
+					state.orcaData[key] = entry['SWELL_HS_BY_TS'];
+				} else {
+					const firstVal = entry[Object.keys(entry)[0]];
+					state.orcaData[key] = Array.isArray(firstVal) ? entry : entry[Object.keys(entry)[0]];
+				}
+			}
+		}
+
+		// Update UI
+		const opCount  = state.ops.length;
+		const refCount = Object.keys(state.orcaData).length;
+		const startStr = state.missionStart
+			? formatAbsTime(state.missionStart)
+			: 'No anchor';
+
+		document.getElementById('plan-loaded-name').textContent = state.projectName.toUpperCase();
+		document.getElementById('plan-loaded-meta').textContent =
+			`${opCount} ops · ${refCount} analysis refs · Start: ${startStr}`;
+		document.getElementById('plan-loaded-info').style.display = 'block';
+		document.getElementById('plan-sub').textContent =
+			state.projectName.toUpperCase();
+
+		// About tab
+		document.getElementById('ab-project').textContent = state.projectName;
+		document.getElementById('ab-ops').textContent     = opCount;
+		document.getElementById('ab-refs').textContent    = refCount;
+		document.getElementById('ab-start').textContent   = startStr;
+		document.getElementById('ab-tide').textContent    = state.tide.length ? `${state.tide.length} points` : '—';
+
+		if (state.tide.length > 0) drawTideSparkline();
+
+		checkRunReady();
+		toast(`✅ Plan loaded: ${opCount} operations`);
+	} catch(err) {
+		toast('Failed to parse plan file', true);
+		console.error(err);
+	}
+}
+
+// ── CSV Plan Loader (WxPlanner Plan v2) ──
+function loadMobilePlanCSV(text, fileName) {
+	const lines = text.split('\n');
+	state.projectName  = fileName || 'Plan';
+	state.missionStart = null;
+	state.ops          = [];
+	state.tide         = [];
+	state.orcaData     = {};
+
+	for (const raw of lines) {
+		const line = raw.trim();
+		if (!line) continue;
+		if (line.startsWith('# Project,'))     { state.projectName = line.split(',').slice(1).join(',').trim(); continue; }
+		if (line.startsWith('# MissionStart,')) {
+			const iso = line.split(',')[1];
+			if (iso) state.missionStart = new Date(iso.trim());
+			continue;
+		}
+		if (line.startsWith('#')) continue;
+
+		const cols = line.split(',');
+		const type = cols[0].toUpperCase();
+
+		if (type === 'OP') {
+			const refs = (cols[6] || 'NONE').split('|').filter(Boolean);
+			state.ops.push({
+				label:    cols[1]?.replace(/^"|"$/g, '').replace(/""/g, '"') || '',
+				start:    parseFloat(cols[2]) || 0,
+				end:      parseFloat(cols[3]) || 0,
+				fixedHdg: parseInt(cols[4])   || 0,
+				hdgMode:  cols[5] || '45',
+				refs,
+				hasLim:       cols[7] === '1',
+				limType:      cols[8] || 'WIND',
+				limVal:       parseFloat(cols[9])  || 0,
+				limDir:       parseInt(cols[10])   || 0,
+				limTol:       parseInt(cols[11])   || 45,
+				hasWaveLimit: cols[12] === '1',
+				maxHs:        parseFloat(cols[13]) || 2.5,
+				completed:    cols[14] === '1',
+			});
+		} else if (type === 'MATRIX') {
+			// MATRIX,id,limitClass,tp,v0...v330
+			const id = cols[1], tp = cols[3];
+			if (!state.orcaData[id]) state.orcaData[id] = {};
+			const vals = cols.slice(4, 16).map(v => v === '' ? null : parseFloat(v));
+			state.orcaData[id][tp] = vals;
+		} else if (type === 'TIDE') {
+			state.tide.push({ hour: parseFloat(cols[1]) || 0, height: parseFloat(cols[2]) || 0 });
+		}
+	}
+
+	const opCount  = state.ops.length;
+	const refCount = Object.keys(state.orcaData).length;
+	const startStr = state.missionStart ? formatAbsTime(state.missionStart) : 'No anchor';
+
+	document.getElementById('plan-loaded-name').textContent = state.projectName.toUpperCase();
+	document.getElementById('plan-loaded-meta').textContent =
+		`${opCount} ops · ${refCount} analysis refs · Start: ${startStr}`;
+	document.getElementById('plan-loaded-info').style.display = 'block';
+	document.getElementById('plan-sub').textContent = state.projectName.toUpperCase();
+	document.getElementById('ab-project').textContent = state.projectName;
+	document.getElementById('ab-ops').textContent     = opCount;
+	document.getElementById('ab-refs').textContent    = refCount;
+	document.getElementById('ab-start').textContent   = startStr;
+	document.getElementById('ab-tide').textContent    = state.tide.length ? `${state.tide.length} points` : '—';
+
+	if (state.tide.length > 0) drawTideSparkline();
+	checkRunReady();
+	toast(`✅ Plan loaded: ${opCount} ops, ${refCount} matrices`);
+}
+
+// ═══════════════════════════════════════════════════
+// STORMGEO WEATHER CSV PARSER
+// (exact port of desktop handleStormGeoCSV logic)
+// ═══════════════════════════════════════════════════
+document.getElementById('wx-main-input').addEventListener('change', function(e) {
+	const file = e.target.files[0];
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = ev => parseStormGeoWeather(ev.target.result);
+	reader.readAsText(file);
+	e.target.value = '';
+});
+
+function parseStormGeoWeather(text) {
+	const rows = text.split('\n').filter(r => r.trim().length > 0);
+	if (rows.length < 2) { toast('Empty weather file', true); return; }
+
+	const delimiter = rows[0].includes('\t') ? '\t' : (rows[0].includes(';') ? ';' : ',');
+	const headers   = rows[0].split(delimiter).map(h => h.replace(/['"]/g,'').trim().toLowerCase());
+
+	const getIdx = (keywords) => {
+		for (const kw of keywords) {
+			const idx = headers.findIndex(h => h === kw || h.includes(kw));
+			if (idx !== -1) return idx;
+		}
+		return -1;
+	};
+
+	const map = {
+		wDir:  getIdx(['winddirection']),
+		wSpd:  getIdx(['windspeed']),
+		swDir: getIdx(['primarywavedirection','swelldirection']),
+		swHs:  getIdx(['swellheig','primarywaveheight']),
+		swTp:  getIdx(['primarywaveperiod','swellperiod']),
+		seaDir:getIdx(['secondarywavedirection','windwavedirection']),
+		seaHs: getIdx(['windwaveheight','secondarywaveheight']),
+		seaTp: getIdx(['secondarywaveperiod','windwaveperiod']),
+	};
+
+	let parsedData   = [];
+	let firstDateMs  = null;
+	const anchor     = state.missionStart ? state.missionStart.getTime() : null;
+
+	for (let i = 1; i < rows.length; i++) {
+		const cols = rows[i].split(delimiter).map(c => c.replace(/['"]/g,'').trim());
+		if (cols.length < 10) continue;
+
+		let rowDate = new Date(cols[0]).getTime();
+		if (isNaN(rowDate) && cols[0].includes('/')) {
+			const parts = cols[0].split(/[ T]/);
+			const dp    = parts[0].split('/');
+			if (dp.length === 3) {
+				rowDate = new Date(
+					`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${parts[1]||'00:00'}:00`
+				).getTime();
+			}
+		}
+		if (isNaN(rowDate)) continue;
+		if (firstDateMs === null) firstDateMs = rowDate;
+
+		const missionAnchor = anchor || firstDateMs;
+		const hourOffset    = (rowDate - missionAnchor) / MS_PER_HOUR;
+		if (hourOffset < -0.5) continue;
+
+		parsedData.push({
+			hour:   hourOffset,
+			wDir:   parseFloat(cols[map.wDir])  || 0,
+			wSpd:  (parseFloat(cols[map.wSpd])  || 0) * 1.94384,  // m/s → kts
+			swDir:  parseFloat(cols[map.swDir]) || 0,
+			swHs:   parseFloat(cols[map.swHs])  || 0,
+			swTp:   parseFloat(cols[map.swTp])  || 0,
+			seaDir: parseFloat(cols[map.seaDir])|| 0,
+			seaHs:  parseFloat(cols[map.seaHs]) || 0,
+			seaTp:  parseFloat(cols[map.seaTp]) || 0,
+		});
+	}
+
+	if (parsedData.length === 0) { toast('No valid weather rows found', true); return; }
+
+	// Auto-set mission start from CSV if not in plan
+	if (!state.missionStart && firstDateMs) {
+		state.missionStart = new Date(firstDateMs);
+	}
+	// Store absolute start of forecast for age checking
+	state.wxAbsoluteStart = firstDateMs ? new Date(firstDateMs) : null;
+	window._autoAnalysisRan = false; // allow re-auto-run on new wx
+
+	state.wxRaw = parsedData;
+
+	// Bucket immediately with current bucket size
+	bucketWeather();
+
+	document.getElementById('wx-main-btn').classList.add('loaded');
+	document.getElementById('wx-main-count').textContent = `${state.wx.length} blocks`;
+	document.getElementById('wx-bucket-row').style.display = 'block';
+	document.getElementById('ab-wx').textContent = `${state.wx.length} blocks from ${parsedData.length} rows`;
+
+	checkForecastAge();
+	checkRunReady();
+	toast(`✅ ${parsedData.length} wx rows → ${state.wx.length} blocks`);
+}
+
+function bucketWeather() {
+	const bucketSize = parseFloat(document.getElementById('bucket-size').value) || 6;
+	if (!state.wxRaw.length) return;
+	state.bucketSize = bucketSize;
+	const maxHour    = state.wxRaw[state.wxRaw.length - 1].hour;
+	state.wx         = [];
+
+	for (let startHour = 0; startHour <= maxHour; startHour += bucketSize) {
+		const endHour = startHour + bucketSize;
+		const chunk   = state.wxRaw.filter(d => d.hour >= startHour && d.hour < endHour);
+		if (chunk.length === 0) continue;
+
+		const worstWind  = chunk.reduce((m,c) => c.wSpd  > m.wSpd  ? c : m, chunk[0]);
+		const worstSea   = chunk.reduce((m,c) => c.seaHs > m.seaHs ? c : m, chunk[0]);
+		const worstSwell = chunk.reduce((m,c) => c.swHs  > m.swHs  ? c : m, chunk[0]);
+
+		state.wx.push({
+			start: startHour, end: endHour,
+			wDir:   Math.round(worstWind.wDir),  wSpd:  worstWind.wSpd,
+			seaDir: Math.round(worstSea.seaDir),  seaHs: worstSea.seaHs,  seaTp: worstSea.seaTp,
+			swDir:  Math.round(worstSwell.swDir), swHs:  worstSwell.swHs, swTp:  worstSwell.swTp,
+			cDir: 0, cSpd: 0,
+		});
+	}
+}
+
+document.getElementById('bucket-size').addEventListener('change', () => {
+	if (state.wxRaw.length) {
+		bucketWeather();
+		document.getElementById('wx-main-count').textContent = `${state.wx.length} blocks`;
+	}
+});
+
+// ═══════════════════════════════════════════════════
+// STORMGEO CURRENTS CSV PARSER
+// ═══════════════════════════════════════════════════
+document.getElementById('wx-curr-input').addEventListener('change', function(e) {
+	const file = e.target.files[0];
+	if (!file) return;
+	const reader = new FileReader();
+	reader.onload = ev => parseStormGeoCurrents(ev.target.result);
+	reader.readAsText(file);
+	e.target.value = '';
+});
+
+function parseStormGeoCurrents(text) {
+	const rows        = text.split('\n').filter(r => r.trim().length > 0);
+	const parsedData  = [];
+	const missionMs   = state.missionStart ? state.missionStart.getTime() : null;
+
+	for (let i = 1; i < rows.length; i++) {
+		let rowStr = rows[i].trim().replace(/['"]/g,'');
+		let cols   = rowStr.split(/[\t,;]+/);
+		if (cols.length === 1) {
+			const sp = rowStr.split(/\s+/);
+			if (sp.length >= 4 && sp[0].includes('/')) cols = [sp[0]+' '+sp[1], sp[2], sp[3]];
+		}
+		if (cols.length < 3) continue;
+
+		let rowDate = new Date(cols[0]).getTime();
+		if (cols[0].includes('/')) {
+			const parts = cols[0].split(/[ T]/);
+			const dp    = parts[0].split('/');
+			if (dp.length === 3) {
+				const tStr = parts[1] || '00:00';
+				const d1   = new Date(`${dp[2]}-${dp[1].padStart(2,'0')}-${dp[0].padStart(2,'0')}T${tStr}:00`).getTime();
+				const d2   = new Date(`${dp[2]}-${dp[0].padStart(2,'0')}-${dp[1].padStart(2,'0')}T${tStr}:00`).getTime();
+				if (!isNaN(d1) && !isNaN(d2)) {
+					rowDate = missionMs
+						? (Math.abs(d1-missionMs) < Math.abs(d2-missionMs) ? d1 : d2)
+						: d1;
+				} else if (!isNaN(d1)) rowDate = d1;
+				else if (!isNaN(d2)) rowDate = d2;
+			}
+		}
+		if (isNaN(rowDate)) continue;
+
+		const anchorMs    = missionMs || rowDate;
+		const hourOffset  = (rowDate - anchorMs) / MS_PER_HOUR;
+		if (hourOffset < -0.5) continue;
+
+		parsedData.push({
+			hour: hourOffset, start: hourOffset, end: hourOffset + 1,
+			cDir: parseFloat(cols[1]) || 0,
+			cSpd: parseFloat(cols[2]) || 0,
+		});
+	}
+
+	if (parsedData.length === 0) { toast('No valid current records', true); return; }
+
+	state.curr = parsedData;
+	// Inject current into matching wx blocks
+	state.wx.forEach(w => {
+		const match = state.curr.find(c => c.start >= w.start && c.start < w.end);
+		if (match) { w.cDir = match.cDir; w.cSpd = match.cSpd; }
+	});
+
+	document.getElementById('wx-curr-btn').classList.add('loaded');
+	document.getElementById('wx-curr-count').textContent = `${parsedData.length} hrs`;
+	document.getElementById('ab-curr').textContent = `${parsedData.length} records`;
+
+	toast(`✅ ${parsedData.length} current records loaded`);
+}
+
+// ═══════════════════════════════════════════════════
+// ENABLE RUN BUTTON
+// ═══════════════════════════════════════════════════
+function checkRunReady() {
+	const ready = state.ops.length > 0 && state.wx.length > 0;
+	document.getElementById('run-btn').disabled = !ready;
+}
+
+// ═══════════════════════════════════════════════════
+// LIMIT MATH ENGINE
+// (exact port from desktop getLimit / getMinLimit)
+// ═══════════════════════════════════════════════════
+function getLimit(analysisId, tp, relDir) {
+	const matrix = state.orcaData[analysisId];
+	if (!matrix) return null;
+
+	const clampedTp = Math.max(0, Math.min(MAX_MATRIX_TP, tp));
+	const tpLow     = Math.floor(clampedTp);
+	const tpHigh    = Math.ceil(clampedTp);
+	const tpFrac    = clampedTp - tpLow;
+
+	const rDir      = ((relDir % 360) + 360) % 360;
+	const colFloat  = rDir / 30;
+	const colLow    = Math.floor(colFloat) % HDG_BUCKETS;
+	const colHigh   = Math.ceil(colFloat)  % HDG_BUCKETS;
+	const colFrac   = colFloat - Math.floor(colFloat);
+
+	const v00 = matrix[tpLow]  && matrix[tpLow][colLow]   != null ? matrix[tpLow][colLow]   : null;
+	const v01 = matrix[tpLow]  && matrix[tpLow][colHigh]  != null ? matrix[tpLow][colHigh]  : null;
+	const v10 = matrix[tpHigh] && matrix[tpHigh][colLow]  != null ? matrix[tpHigh][colLow]  : null;
+	const v11 = matrix[tpHigh] && matrix[tpHigh][colHigh] != null ? matrix[tpHigh][colHigh] : null;
+
+	if (v00 === null || v01 === null || v10 === null || v11 === null) return null;
+
+	const valLow  = v00 + (v01 - v00) * colFrac;
+	const valHigh = v10 + (v11 - v10) * colFrac;
+	return valLow + (valHigh - valLow) * tpFrac;
+}
+
+function getMinLimit(refs, tp, relDir) {
+	let min = 99;
+	for (const r of refs) {
+		if (r === 'NONE') continue;
+		const l = getLimit(r, tp, relDir);
+		if (l !== null && l < min) min = l;
+	}
+	return min === 99 ? null : min;
+}
+
+function getOptimalHdg(op, wx) {
+	const tol = parseInt(op.hdgMode) || 0;
+	if (tol === 0) return op.fixedHdg;
+	let bestHdg = op.fixedHdg, bestScore = -9999;
+	for (let offset = -tol; offset <= tol; offset++) {
+		const testHdg  = (op.fixedHdg + offset + 360) % 360;
+		const stern    = (testHdg + 180) % 360;
+		const relSea   = (stern - wx.seaDir + 360) % 360;
+		const relSw    = (stern - wx.swDir  + 360) % 360;
+		const limSea   = getMinLimit(op.refs, wx.seaTp, relSea);
+		const limSw    = getMinLimit(op.refs, wx.swTp,  relSw);
+		const seaMarg  = limSea !== null ? limSea - wx.seaHs : 999;
+		const swMarg   = limSw  !== null ? limSw  - wx.swHs  : 999;
+		const score    = Math.min(seaMarg, swMarg) + (tol - Math.abs(offset)) * 0.001;
+		if (score > bestScore) { bestScore = score; bestHdg = testHdg; }
+	}
+	return bestHdg;
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN ANALYSIS ENGINE
+// ═══════════════════════════════════════════════════
+function runAnalysis() {
+	if (!state.ops.length || !state.wx.length) return;
+
+	// Re-bucket with latest bucket size setting
+	bucketWeather();
+
+	let passCount = 0, warnCount = 0, failCount = 0;
+	const opResults = [];
+
+	state.ops.forEach(op => {
+		// Find all wx blocks overlapping this operation
+		const overlaps = state.wx.filter(w => w.start < op.end && w.end > op.start);
+
+		if (overlaps.length === 0) {
+			opResults.push({ op, segments: [], verdict: 'nodata' });
+			return;
+		}
+
+		let opVerdict    = 'pass';
+		const segments   = [];
+
+		overlaps.forEach(wx => {
+			// Inject current if available
+			const currMatch = state.curr.find(c => c.start >= wx.start && c.start < wx.end);
+			const mergedWx  = { ...wx };
+			if (currMatch) { mergedWx.cDir = currMatch.cDir; mergedWx.cSpd = currMatch.cSpd; }
+
+			// Optimal heading for this op/wx combo
+			const bestHdg  = getOptimalHdg(op, mergedWx);
+			const stern     = (bestHdg + 180) % 360;
+			const relSea    = (stern - mergedWx.seaDir + 360) % 360;
+			const relSw     = (stern - mergedWx.swDir  + 360) % 360;
+			const relWind   = (stern - mergedWx.wDir   + 360) % 360;
+			const relCurr   = (stern - mergedWx.cDir   + 360) % 360;
+
+			let segVerdict   = 'pass';
+			const traceRows  = [];
+
+			// ── Check global Hs limit ──
+			if (op.hasWaveLimit) {
+				const pct   = op.maxHs > 0 ? mergedWx.seaHs / op.maxHs : 0;
+				const state_val = mergedWx.seaHs > op.maxHs ? 'fail' : mergedWx.seaHs >= op.maxHs * WARN_THRESHOLD ? 'warn' : 'pass';
+				if (state_val === 'fail') segVerdict = 'fail';
+				else if (state_val === 'warn' && segVerdict !== 'fail') segVerdict = 'warn';
+				traceRows.push({
+					ref: 'GLOBAL LIMIT', limitClass: 'MAX HS',
+					parameter: 'Hs', tp: null,
+					actual: mergedWx.seaHs, limit: op.maxHs,
+					relDir: null, pct,
+					verdict: state_val, interpolated: false,
+				});
+			}
+
+			// ── Check vessel sector limit (wind/current) ──
+			if (op.hasLim) {
+				const force   = op.limType === 'WIND' ? mergedWx.wSpd  : mergedWx.cSpd;
+				const dir     = op.limType === 'WIND' ? mergedWx.wDir  : mergedWx.cDir;
+				const diff    = Math.abs((dir - op.limDir + 540) % 360 - 180);
+				const inSector = diff <= op.limTol;
+				if (inSector) {
+					const pct    = op.limVal > 0 ? force / op.limVal : 0;
+					const sv     = force > op.limVal ? 'fail' : force >= op.limVal * WARN_THRESHOLD ? 'warn' : 'pass';
+					if (sv === 'fail') segVerdict = 'fail';
+					else if (sv === 'warn' && segVerdict !== 'fail') segVerdict = 'warn';
+					traceRows.push({
+						ref: 'VESSEL LIMIT', limitClass: op.limType + ' SECTOR',
+						parameter: op.limType, tp: null,
+						actual: force, limit: op.limVal,
+						relDir: Math.round(diff), pct,
+						verdict: sv, interpolated: false,
+					});
+				}
+			}
+
+			// ── Check analysis matrices (sea + swell per ref) ──
+			(op.refs || []).filter(r => r !== 'NONE').forEach(ref => {
+				// SEA check
+				const seaLim  = getLimit(ref, mergedWx.seaTp, relSea);
+				if (seaLim !== null) {
+					const pct    = seaLim > 0 ? mergedWx.seaHs / seaLim : 0;
+					const sv     = mergedWx.seaHs > seaLim ? 'fail' : mergedWx.seaHs >= seaLim * WARN_THRESHOLD ? 'warn' : 'pass';
+					if (sv === 'fail') segVerdict = 'fail';
+					else if (sv === 'warn' && segVerdict !== 'fail') segVerdict = 'warn';
+					traceRows.push({
+						ref, limitClass: 'WAVE_HS_BY_TP', parameter: 'Sea Hs',
+						tp: mergedWx.seaTp, actual: mergedWx.seaHs, limit: seaLim,
+						relDir: Math.round(relSea), pct,
+						verdict: sv, interpolated: true,
+					});
+				}
+
+				// SWELL check
+				const swLim   = getLimit(ref, mergedWx.swTp, relSw);
+				if (swLim !== null) {
+					const pct    = swLim > 0 ? mergedWx.swHs / swLim : 0;
+					const sv     = mergedWx.swHs > swLim ? 'fail' : mergedWx.swHs >= swLim * WARN_THRESHOLD ? 'warn' : 'pass';
+					if (sv === 'fail') segVerdict = 'fail';
+					else if (sv === 'warn' && segVerdict !== 'fail') segVerdict = 'warn';
+					traceRows.push({
+						ref, limitClass: 'SWELL_HS_BY_TS', parameter: 'Swell Hs',
+						tp: mergedWx.swTp, actual: mergedWx.swHs, limit: swLim,
+						relDir: Math.round(relSw), pct,
+						verdict: sv, interpolated: true,
+					});
+				}
+			});
+
+			// If no analysis refs and no limits, mark as nodata
+			if (traceRows.length === 0) segVerdict = 'nodata';
+
+			if (segVerdict === 'fail') opVerdict = 'fail';
+			else if (segVerdict === 'warn' && opVerdict !== 'fail') opVerdict = 'warn';
+
+			segments.push({
+				wx: mergedWx, bestHdg, stern,
+				relSea, relSw, relWind, relCurr,
+				verdict: segVerdict, traceRows,
+			});
+		});
+
+		if (opVerdict === 'pass') passCount++;
+		else if (opVerdict === 'warn') warnCount++;
+		else if (opVerdict === 'fail') failCount++;
+
+		opResults.push({ op, segments, verdict: opVerdict });
+	});
+
+	// ── Update summary ──
+	document.getElementById('res-pass-count').textContent = passCount;
+	document.getElementById('res-warn-count').textContent = warnCount;
+	document.getElementById('res-fail-count').textContent = failCount;
+
+	// ── Forecast window banner ──
+	if (state.wx.length > 0 && state.missionStart) {
+		const firstHr = state.wx[0].start;
+		const lastHr  = state.wx[state.wx.length-1].end;
+		const t0      = new Date(state.missionStart.getTime() + firstHr * MS_PER_HOUR);
+		const t1      = new Date(state.missionStart.getTime() + lastHr  * MS_PER_HOUR);
+		document.getElementById('wx-window-text').textContent =
+			`${formatAbsTime(t0)} → ${formatAbsTime(t1)}  (${(lastHr-firstHr).toFixed(0)}h window · ${state.bucketSize}h blocks · worst-case)`;
+		document.getElementById('wx-window-card').style.display = 'block';
+	}
+
+	// ── Render result cards ──
+	renderResults(opResults);
+	showPage('results');
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════════════════
+function renderResults(opResults) {
+	const container = document.getElementById('results-list');
+	container.innerHTML = '';
+	if (!opResults.length) {
+		container.innerHTML = '<div class="no-wx-banner">No operations to display</div>';
+		return;
+	}
+
+	// Store for fullscreen access
+	window._lastOpResults = opResults;
+
+	const verdictLabels = { pass:'PASS', warn:'WARNING', fail:'FAILED', nodata:'NO DATA' };
+	const dotColour = { pass: 'var(--safe)', warn: 'var(--warn)', fail: 'var(--danger)', nodata: 'var(--muted)' };
+	const verdictBg = {
+		pass:   'background:rgba(0,232,135,0.12);  color:var(--safe)',
+		warn:   'background:rgba(255,184,0,0.12);   color:var(--warn)',
+		fail:   'background:rgba(255,59,59,0.15);   color:var(--danger)',
+		nodata: 'background:rgba(74,96,128,0.2);    color:var(--muted)',
+	};
+
+	opResults.forEach((result, idx) => {
+		const { op, verdict } = result;
+		const card = document.createElement('div');
+		card.className = `op-result r-${verdict}`;
+		card.style.cssText = 'cursor:pointer;';
+
+		// Completed ops — greyed out, tap still opens detail for restore option
+		if (op.completed) {
+			card.innerHTML = `
+				<div class="op-result-header" style="padding:10px 16px; opacity:0.45;">
+					<div class="op-status-dot" style="background:#334155;"></div>
+					<div class="op-result-name" style="text-decoration:line-through; color:var(--muted);">${op.label || 'Operation ' + (idx+1)}</div>
+					<div class="op-result-verdict" style="background:rgba(51,65,85,0.3); color:#4a6080; border-radius:4px; padding:3px 8px; font-size:0.65rem; font-weight:700; letter-spacing:1.5px;">DONE</div>
+					<div style="color:var(--muted); font-size:0.85rem; margin-left:4px;">›</div>
+				</div>`;
+			card.addEventListener('click', () => openResultFullscreen(idx));
+			card.addEventListener('touchstart', (e) => { e.preventDefault(); openResultFullscreen(idx); }, { passive: false });
+			container.appendChild(card);
+			return;
+		}
+
+		// Simple tap-target card
+		card.innerHTML = `
+			<div class="op-result-header" style="padding:14px 16px;">
+				<div class="op-status-dot" style="background:${dotColour[verdict] || 'var(--muted)'};
+					${verdict==='fail'?'box-shadow:0 0 8px var(--danger);animation:blink 1s ease-in-out infinite':''}"></div>
+				<div class="op-result-name">${op.label || 'Operation ' + (idx+1)}</div>
+				<div class="op-result-verdict" style="${verdictBg[verdict] || ''}">${verdictLabels[verdict] || verdict}</div>
+				<div style="color:#8ba3c0; font-size:0.85rem; margin-left:4px;">›</div>
+			</div>
+			<div style="padding:0 16px 12px; font-family:var(--mono); font-size:0.68rem; color:#b0c4d8; display:flex; gap:16px;">
+				<span>T+${op.start.toFixed(1)}h → T+${op.end.toFixed(1)}h</span>
+				<span>Hdg ${String(op.fixedHdg).padStart(3,'0')}° ±${op.hdgMode}°</span>
+				<span>${(op.refs||[]).filter(r=>r!=='NONE').join(', ') || '—'}</span>
+			</div>
+		`;
+
+		// Tap → fullscreen detail (touchend avoids blocking list scroll)
+		card.addEventListener('click', () => openResultFullscreen(idx));
+		let _touchMoved = false;
+		card.addEventListener('touchstart', () => { _touchMoved = false; }, { passive: true });
+		card.addEventListener('touchmove',  () => { _touchMoved = true;  }, { passive: true });
+		card.addEventListener('touchend',   (e) => {
+			if (!_touchMoved) { e.preventDefault(); openResultFullscreen(idx); }
+		}, { passive: false });
+
+		container.appendChild(card);
+	});
+}
+
+// ═══════════════════════════════════════════════════
+// FULLSCREEN RESULT DETAIL
+// ═══════════════════════════════════════════════════
+function openResultFullscreen(idx) {
+	const opResults = window._lastOpResults;
+	if (!opResults || !opResults[idx]) return;
+	window._openResultIdx = idx; // store for toggleTaskComplete
+
+	const { op, segments, verdict } = opResults[idx];
+	const overlay = document.getElementById('result-fullscreen');
+	const dotColour = { pass: 'var(--safe)', warn: 'var(--warn)', fail: 'var(--danger)', nodata: 'var(--muted)' };
+	const verdictBg = {
+		pass:   'background:rgba(0,232,135,0.12); color:var(--safe)',
+		warn:   'background:rgba(255,184,0,0.12);  color:var(--warn)',
+		fail:   'background:rgba(255,59,59,0.15);  color:var(--danger)',
+		nodata: 'background:rgba(74,96,128,0.2);   color:var(--muted)',
+	};
+	const verdictLabels = { pass:'PASS', warn:'WARNING', fail:'FAILED', nodata:'NO DATA' };
+
+	// Header
+	document.getElementById('rfs-dot').style.background     = dotColour[verdict] || 'var(--muted)';
+	document.getElementById('rfs-op-name').textContent       = op.label || `Operation ${idx+1}`;
+	document.getElementById('rfs-op-meta').textContent       =
+		`T+${op.start.toFixed(1)}h → T+${op.end.toFixed(1)}h · Hdg ${String(op.fixedHdg).padStart(3,'0')}° ±${op.hdgMode}° · ${(op.refs||[]).filter(r=>r!=='NONE').join(' + ') || 'No matrix'}`;
+	const rfsVerdict = document.getElementById('rfs-verdict');
+	rfsVerdict.textContent  = verdictLabels[verdict] || verdict;
+	rfsVerdict.style.cssText = verdictBg[verdict] || '';
+
+	// Reflect completed state on the footer button
+	const completeBtn = document.getElementById('rfs-complete-btn');
+	if (completeBtn) {
+		if (op.completed) {
+			completeBtn.textContent = '↺ RESTORE TASK';
+			completeBtn.style.borderColor = 'var(--safe)';
+			completeBtn.style.color       = 'var(--safe)';
+			completeBtn.style.background  = 'rgba(0,232,135,0.08)';
+		} else {
+			completeBtn.textContent = '✓ MARK COMPLETE';
+			completeBtn.style.borderColor = 'var(--border)';
+			completeBtn.style.color       = 'var(--muted)';
+			completeBtn.style.background  = 'transparent';
+		}
+	}
+
+	// Body
+	const body = document.getElementById('rfs-body');
+	body.innerHTML = '';
+
+	if (!segments || !segments.length) {
+		body.innerHTML = '<div class="no-wx-banner" style="color:var(--muted); padding:40px; text-align:center; font-size:0.85rem;">No weather data covers this operation window</div>';
+	} else {
+		segments.forEach(seg => {
+			const segEl = document.createElement('div');
+			segEl.className = 'rfs-segment';
+
+			const timeLabel = state.missionStart
+				? `${formatAbsTime(new Date(state.missionStart.getTime() + seg.wx.start * MS_PER_HOUR))} → ${formatAbsTime(new Date(state.missionStart.getTime() + seg.wx.end * MS_PER_HOUR))}`
+				: `T+${seg.wx.start.toFixed(1)}h → T+${seg.wx.end.toFixed(1)}h`;
+			const segIdx   = segments.indexOf(seg);
+			const segLabel = segments.length > 1
+				? (segIdx === 0 ? '▶ TASK START — Weather Check' : '■ TASK END — Weather Check')
+				: '● Weather Check';
+
+			segEl.innerHTML = `
+				<div class="rfs-seg-header">
+					<div>
+						<div style="font-size:0.55rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#8ba3c0; margin-bottom:3px;">${segLabel}</div>
+						<div class="rfs-seg-time" style="color:#c0d0e0;">${timeLabel}</div>
+						<div class="rfs-seg-wx">
+							<span style="color:var(--c-wind)">W ${Math.round(seg.wx.wSpd)}kts/${seg.wx.wDir}°T</span>
+							<span style="color:var(--c-sea);   margin-left:10px;">SEA ${seg.wx.seaHs.toFixed(1)}m/${seg.wx.seaTp.toFixed(0)}s</span>
+							<span style="color:var(--c-swell); margin-left:10px;">SWL ${seg.wx.swHs.toFixed(1)}m/${seg.wx.swTp.toFixed(0)}s</span>
+							<span style="color:var(--c-curr);  margin-left:10px;">CUR ${seg.wx.cSpd.toFixed(1)}kts/${seg.wx.cDir}°T</span>
+						</div>
+					</div>
+					<div class="rfs-seg-verdict ${seg.verdict}">${seg.verdict.toUpperCase()}</div>
+				</div>
+				<div class="rfs-hdg-row">
+					<div class="rfs-hdg-item"><div class="rfs-hdg-label">Best Hdg</div><div class="rfs-hdg-val">${String(Math.round(seg.bestHdg)).padStart(3,'0')}°T</div></div>
+					<div class="rfs-hdg-item"><div class="rfs-hdg-label">Stern</div><div class="rfs-hdg-val">${String(Math.round(seg.stern)).padStart(3,'0')}°T</div></div>
+					<div class="rfs-hdg-item"><div class="rfs-hdg-label">Rel Sea</div><div class="rfs-hdg-val">${String(Math.round(seg.relSea)).padStart(3,'0')}°</div></div>
+					<div class="rfs-hdg-item"><div class="rfs-hdg-label">Rel Swell</div><div class="rfs-hdg-val">${String(Math.round(seg.relSw)).padStart(3,'0')}°</div></div>
+					<div class="rfs-hdg-item"><div class="rfs-hdg-label">Rel Wind</div><div class="rfs-hdg-val">${String(Math.round(seg.relWind)).padStart(3,'0')}°</div></div>
+				</div>
+			`;
+
+			if (seg.traceRows && seg.traceRows.length > 0) {
+				const traceWrap = document.createElement('div');
+				traceWrap.className = 'rfs-trace-rows';
+				seg.traceRows.forEach(tr => {
+					const pctClamped = Math.min(1, Math.max(0, tr.pct || 0));
+					const valClass   = tr.verdict === 'fail' ? 'exceeded' : tr.verdict === 'warn' ? 'warning' : 'ok';
+					const unit = tr.parameter && (tr.parameter.includes('Hs') || tr.parameter === 'Hs') ? 'm'
+						: (tr.parameter === 'WIND' || tr.parameter === 'CURR') ? 'kts' : '';
+					const tpStr   = tr.tp !== null && tr.tp !== undefined ? `Tp ${tr.tp.toFixed(1)}s` : '—';
+					const relStr  = tr.relDir !== null && tr.relDir !== undefined ? `${String(tr.relDir).padStart(3,'0')}°` : '—';
+					const limStr  = tr.limit  !== null ? tr.limit.toFixed(2)  + unit : 'N/A';
+					const actStr  = tr.actual !== null ? tr.actual.toFixed(2) + unit : '—';
+					const pctStr2 = tr.limit  > 0     ? `${(tr.pct * 100).toFixed(0)}%` : '—';
+
+					const row = document.createElement('div');
+					row.className = 'rfs-trace-row';
+					row.innerHTML = `
+						<div class="rfs-trace-header">
+							<div>
+								<div class="rfs-trace-ref">${tr.ref}</div>
+								<div class="rfs-trace-class">${tr.limitClass} · ${tr.parameter}</div>
+							</div>
+							<div class="rfs-trace-badge ${tr.verdict}">${tr.verdict.toUpperCase()}</div>
+						</div>
+						<div class="rfs-trace-values">
+							<div class="rfs-val-item">
+								<div class="rfs-val-label">Actual</div>
+								<div class="rfs-val-num ${valClass}">${actStr}</div>
+								<div class="rfs-bar-wrap"><div class="rfs-bar ${tr.verdict}" style="width:${(pctClamped*100).toFixed(1)}%"></div></div>
+							</div>
+							<div class="rfs-val-item">
+								<div class="rfs-val-label">Limit</div>
+								<div class="rfs-val-num neutral">${limStr}${tr.interpolated?' <span style="font-size:0.55rem;color:#9ab0c4">(interp)</span>':''}</div>
+							</div>
+							<div class="rfs-val-item">
+								<div class="rfs-val-label">Utilisation</div>
+								<div class="rfs-val-num ${valClass}">${pctStr2}</div>
+							</div>
+							<div class="rfs-val-item">
+								<div class="rfs-val-label">${tr.tp !== null && tr.tp !== undefined ? 'Period' : 'Rel Dir'}</div>
+								<div class="rfs-val-num neutral">${tr.tp !== null && tr.tp !== undefined ? tpStr : relStr}</div>
+							</div>
+						</div>
+					`;
+					traceWrap.appendChild(row);
+				});
+				segEl.appendChild(traceWrap);
+			} else {
+				segEl.innerHTML += '<div class="no-wx-banner" style="padding:16px; font-size:0.78rem;">No analysis limits configured for this operation</div>';
+			}
+			body.appendChild(segEl);
+		});
+	}
+
+	// Open — tap anywhere (including body) to close
+	overlay.classList.add('open');
+	document.body.style.overflow = 'hidden';
+}
+
+function closeResultFullscreen() {
+	const overlay = document.getElementById('result-fullscreen');
+	overlay.classList.remove('open');
+	document.body.style.overflow = '';
+}
+
+function toggleTaskComplete() {
+	const opResults = window._lastOpResults;
+	if (!opResults) return;
+	// Find which op index is currently open
+	const idx = window._openResultIdx;
+	if (idx === undefined || !state.ops[idx]) return;
+	const op = state.ops[idx];
+	op.completed = !op.completed;
+
+	// Update the button
+	const btn = document.getElementById('rfs-complete-btn');
+	if (btn) {
+		if (op.completed) {
+			btn.textContent = '↺ RESTORE TASK';
+			btn.style.borderColor = 'var(--safe)';
+			btn.style.color       = 'var(--safe)';
+			btn.style.background  = 'rgba(0,232,135,0.08)';
+		} else {
+			btn.textContent = '✓ MARK COMPLETE';
+			btn.style.borderColor = 'var(--border)';
+			btn.style.color       = 'var(--muted)';
+			btn.style.background  = 'transparent';
+		}
+	}
+
+	// Re-render results list and task block
+	if (window._lastOpResults) renderResults(window._lastOpResults);
+	if (typeof buildTimelineTracks === 'function') buildTimelineTracks();
+	if (typeof updateLiveView === 'function') updateLiveView();
+}
+
+// ═══════════════════════════════════════════════════
+// HEADING UTILISATION HELPER
+// ═══════════════════════════════════════════════════
+function _getHdgUtilisation(op, wx, hdg) {
+	if (!wx || !op.refs) return 0;
+	let maxUtil = 0;
+	const stern = (hdg + 180) % 360;
+	op.refs.filter(r => r && r !== 'NONE').forEach(refId => {
+		if (!state.orcaData[refId]) return;
+		// Wave sea check
+		const seaLim = getLimit(refId, wx.seaTp, ((wx.seaDir - stern + 360) % 360));
+		if (seaLim && seaLim > 0) maxUtil = Math.max(maxUtil, wx.seaHs / seaLim);
+		// Swell check
+		const swLim  = getLimit(refId, wx.swTp,  ((wx.swDir  - stern + 360) % 360));
+		if (swLim  && swLim  > 0) maxUtil = Math.max(maxUtil, wx.swHs  / swLim);
+	});
+	return maxUtil;
+}
+
+// ═══════════════════════════════════════════════════
+// FORECAST AGE CHECK — uses earliest CSV timestamp
+// ═══════════════════════════════════════════════════
+function checkForecastAge() {
+	const banner = document.getElementById('forecast-age-banner');
+	if (!banner) return;
+	if (!state.wxAbsoluteStart) { banner.style.display = 'none'; return; }
+
+	const limitHrs = parseFloat(document.getElementById('forecast-age-limit')?.value) || 24;
+	const ageHrs   = (Date.now() - state.wxAbsoluteStart.getTime()) / 3_600_000;
+	const ageLabel = ageHrs < 1
+		? `${Math.round(ageHrs * 60)} min`
+		: `${ageHrs.toFixed(1)} hrs`;
+	const dateStr  = state.wxAbsoluteStart.toLocaleDateString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+
+	if (ageHrs > limitHrs * 2) {
+		banner.style.cssText = 'display:block; border-radius:6px; padding:8px 14px; margin-top:6px; font-size:0.78rem; font-weight:700; letter-spacing:1px; text-align:center; background:rgba(255,59,59,0.15); border:1px solid var(--danger); color:var(--danger);';
+		banner.textContent = `🚨 FORECAST ${ageLabel} OLD (from ${dateStr}) — RE-DOWNLOAD`;
+	} else if (ageHrs > limitHrs) {
+		banner.style.cssText = 'display:block; border-radius:6px; padding:8px 14px; margin-top:6px; font-size:0.78rem; font-weight:700; letter-spacing:1px; text-align:center; background:rgba(255,184,0,0.12); border:1px solid var(--warn); color:var(--warn);';
+		banner.textContent = `⚠ FORECAST ${ageLabel} OLD (from ${dateStr})`;
+	} else {
+		banner.style.cssText = 'display:block; border-radius:6px; padding:8px 14px; margin-top:6px; font-size:0.78rem; font-weight:700; letter-spacing:1px; text-align:center; background:rgba(0,232,135,0.08); border:1px solid var(--safe); color:var(--safe);';
+		banner.textContent = `✓ FORECAST ${ageLabel} OLD — WITHIN LIMIT`;
+	}
+}
+
+// ═══════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════
+function formatAbsTime(date) {
+	if (!date || isNaN(date)) return '--/-- --:--';
+	const pad = n => String(n).padStart(2,'0');
+	return `${pad(date.getDate())}/${pad(date.getMonth()+1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function clearSession() {
+	if (!confirm('Clear all loaded data and reset the app?')) return;
+	state = {
+		projectName: null, missionStart: null,
+		ops: [], orcaData: {}, wx: [], curr: [], tide: [], wxRaw: [], bucketSize: 6,
+	};
+	document.getElementById('plan-loaded-info').style.display = 'none';
+	document.getElementById('wx-main-btn').classList.remove('loaded');
+	document.getElementById('wx-curr-btn').classList.remove('loaded');
+	document.getElementById('wx-tide-btn').classList.remove('loaded');
+	document.getElementById('wx-main-count').textContent = '—';
+	document.getElementById('wx-curr-count').textContent = '—';
+	document.getElementById('wx-tide-count').textContent = '—';
+	document.getElementById('wx-bucket-row').style.display = 'none';
+	document.getElementById('wx-window-card').style.display = 'none';
+	document.getElementById('tide-sparkline-card').style.display = 'none';
+	document.getElementById('results-list').innerHTML = '';
+	document.getElementById('res-pass-count').textContent = '0';
+	document.getElementById('res-warn-count').textContent = '0';
+	document.getElementById('res-fail-count').textContent = '0';
+	document.getElementById('plan-sub').textContent = 'NO PLAN LOADED';
+	['ab-project','ab-ops','ab-refs','ab-start','ab-wx','ab-curr','ab-tide'].forEach(id => {
+		document.getElementById(id).textContent = '—';
+	});
+	document.getElementById('run-btn').disabled = true;
+	showPage('load');
+	toast('Session cleared');
+}
+
+// ═══════════════════════════════════════════════════
+// LIVE VIEW ENGINE
+// ═══════════════════════════════════════════════════
+
+// Live view state
+let lv = {
+	t: 0,
+	t_pop: 24,
+	hdg: 0,
+	targetHdg: 0,
+	simTimer: null,
+	simSpeed: 1.0,
+	simLoop: true,
+	scrubbing: false,
+};
+
+// Initialise live view once plan+wx loaded
+function initLiveView() {
+	if (!state.ops.length || !state.wx.length) return;
+	const maxOp = state.ops.length ? state.ops[state.ops.length-1].end : 0;
+	const maxWx = state.wx.length ? state.wx[state.wx.length-1].end  : 0;
+	lv.t_pop = Math.max(24, maxOp, maxWx);
+	lv.t = 0;
+	lv.hdg = state.ops.length ? (state.ops[0].fixedHdg || 0) : 0;
+	document.getElementById('live-no-plan').style.display = 'none';
+	buildTimelineTracks();
+	updateLiveView();
+}
+
+// ── TASK BLOCK TIMELINE ENGINE ──
+let taskVerdicts = {}; // idx -> 'pass'|'warn'|'fail'|'none'
+let currentTaskIdx = 0;
+
+function buildTimelineTracks() {
+	// If current task is completed, jump to first incomplete
+	const firstIncomplete = state.ops.findIndex(o => !o.completed);
+	if (firstIncomplete > 0 && currentTaskIdx < firstIncomplete) {
+		currentTaskIdx = firstIncomplete;
+		lv.t = state.ops[firstIncomplete].start;
+	}
+	rebuildTaskDots();
+	updateTaskNav();
+	renderTaskBlock(currentTaskIdx, null);  // use current, not hardcoded 0
+	if (state.missionStart) {
+		const t0 = state.missionStart;
+		const pad = n => String(n).padStart(2,'0');
+		document.getElementById('tl-t0').textContent =
+			`${pad(t0.getDate())}/${pad(t0.getMonth()+1)} ${pad(t0.getHours())}:${pad(t0.getMinutes())}`;
+		document.getElementById('tl-mid').textContent = `+${Math.round(lv.t_pop/2)}h`;
+		document.getElementById('tl-end').textContent = `+${Math.round(lv.t_pop)}h`;
+	}
+}
+
+function rebuildTaskDots() {
+	// Dots removed — coloured task block provides status at a glance
+}
+
+function updateTaskNav() {
+	const p = document.getElementById('task-prev-btn');
+	const n = document.getElementById('task-next-btn');
+	if (p) p.disabled = currentTaskIdx <= 0;
+	if (n) n.disabled = currentTaskIdx >= state.ops.length - 1;
+}
+
+function getTaskVerdictClass(idx) {
+	if (state.ops[idx] && state.ops[idx].completed) return 'done-block';
+	const v = taskVerdicts[idx] || 'none';
+	return v === 'none' ? 'none-block' : `${v}-block`;
+}
+
+function renderTaskBlock(idx, direction) {
+	if (!state.ops.length) return;
+	const op = state.ops[idx];
+	if (!op) return;
+	const blockEl = document.getElementById('task-block-current');
+	const labels = { pass:'PASS', warn:'WARNING', fail:'FAILED', none:'NO DATA' };
+	const cls = getTaskVerdictClass(idx);
+	if (direction) {
+		const outCls = direction === 1 ? 'slide-out-left' : 'slide-out-right';
+		const inCls  = direction === 1 ? 'slide-in-right' : 'slide-in-left';
+		blockEl.classList.remove('visible'); blockEl.classList.add(outCls);
+		setTimeout(() => {
+			_fillTaskBlock(blockEl, op, idx, cls, labels);
+			blockEl.classList.remove(outCls); blockEl.classList.add(inCls);
+			blockEl.offsetWidth; // reflow
+			blockEl.classList.remove(inCls); blockEl.classList.add('visible');
+		}, 160);
+	} else {
+		_fillTaskBlock(blockEl, op, idx, cls, labels);
+		blockEl.classList.add('visible');
+	}
+}
+
+function _fillTaskBlock(blockEl, op, idx, cls, labels) {
+	blockEl.className = `task-block ${cls} visible`;
+	document.getElementById('tb-name').textContent    = op.label || `Task ${idx+1}`;
+	document.getElementById('tb-dur').textContent     = `${(op.end - op.start).toFixed(1)}h`;
+	document.getElementById('tb-hdg').textContent     = `Hdg ${String(op.fixedHdg).padStart(3,'0')}° ±${op.hdgMode}°`;
+	document.getElementById('tb-verdict').textContent = labels[taskVerdicts[idx]] || '—';
+}
+
+function stepTask(dir) {
+	const newIdx = currentTaskIdx + dir;
+	if (newIdx < 0 || newIdx >= state.ops.length) return;
+	lv.t = state.ops[newIdx].start + 0.01;
+	currentTaskIdx = newIdx;
+	renderTaskBlock(newIdx, dir);
+	rebuildTaskDots();
+	updateTaskNav();
+	updateLiveView();
+}
+
+function jumpToTask(idx) {
+	if (idx === currentTaskIdx) return;
+	const dir = idx > currentTaskIdx ? 1 : -1;
+	lv.t = state.ops[idx].start + 0.01;
+	currentTaskIdx = idx;
+	renderTaskBlock(idx, dir);
+	rebuildTaskDots();
+	updateTaskNav();
+	updateLiveView();
+}
+
+// ── INTERPOLATED WEATHER ──
+function getLiveWx(t) {
+	if (!state.wx.length) return null;
+	const idx = state.wx.findIndex(w => t >= w.start && t < w.end);
+	if (idx === -1) return state.wx[state.wx.length-1];
+	const w1 = state.wx[idx];
+	const w2 = state.wx[idx+1];
+	if (!w2) return w1;
+	const p = (t - w1.start) / (w1.end - w1.start);
+	const lerp    = (a, b, f) => a + (b - a) * f;
+	const lerpDeg = (a, b, f) => { let d = b-a; if(d>180)d-=360; if(d<-180)d+=360; return ((a+d*f)%360+360)%360; };
+
+	// Merge in current data if available
+	const cMatch = state.curr.find(c => t >= c.start && t < c.end);
+
+	return {
+		wDir:   lerpDeg(w1.wDir,   w2.wDir,   p),
+		wSpd:   lerp(w1.wSpd,   w2.wSpd,   p),
+		seaDir: lerpDeg(w1.seaDir, w2.seaDir, p),
+		seaHs:  lerp(w1.seaHs,  w2.seaHs,  p),
+		seaTp:  lerp(w1.seaTp,  w2.seaTp,  p),
+		swDir:  lerpDeg(w1.swDir,  w2.swDir,  p),
+		swHs:   lerp(w1.swHs,   w2.swHs,   p),
+		swTp:   lerp(w1.swTp,   w2.swTp,   p),
+		cDir:   cMatch ? cMatch.cDir : lerp(w1.cDir||0, w2.cDir||0, p),
+		cSpd:   cMatch ? cMatch.cSpd : lerp(w1.cSpd||0, w2.cSpd||0, p),
+	};
+}
+
+// ── HEATMAP STOPS (ported from desktop buildHeatmapStops) ──
+function buildMobHeatmapStops(op, wx) {
+	const stops = [];
+	// Geo/global check
+	let geoFailed = false, geoWarn = false;
+	if (op.hasWaveLimit) {
+		if (wx.seaHs > op.maxHs) geoFailed = true;
+		else if (wx.seaHs >= op.maxHs * WARN_THRESHOLD) geoWarn = true;
+	}
+	if (op.hasLim) {
+		const force = op.limType === 'WIND' ? wx.wSpd : wx.cSpd;
+		const dir   = op.limType === 'WIND' ? wx.wDir : wx.cDir;
+		const diff  = Math.abs((dir - op.limDir + 540) % 360 - 180);
+		if (diff <= op.limTol) {
+			if (force > op.limVal) geoFailed = true;
+			else if (force >= op.limVal * WARN_THRESHOLD) geoWarn = true;
+		}
+	}
+
+	for (let h = 0; h <= 360; h += 5) {
+		const stern  = (h + 180) % 360;
+		const relSea = (stern - wx.seaDir + 360) % 360;
+		const relSw  = (stern - wx.swDir  + 360) % 360;
+		const limSea = getMinLimit(op.refs, wx.seaTp, relSea);
+		const limSw  = getMinLimit(op.refs, wx.swTp,  relSw);
+
+		let isSafe = true, isWarn = false;
+		if (limSea !== null) {
+			if (wx.seaHs > limSea) isSafe = false;
+			else if (wx.seaHs >= limSea * WARN_THRESHOLD) isWarn = true;
+		}
+		if (limSw !== null) {
+			if (wx.swHs > limSw) isSafe = false;
+			else if (wx.swHs >= limSw * WARN_THRESHOLD) isWarn = true;
+		}
+		if (geoFailed) isSafe = false;
+		else if (geoWarn) isWarn = true;
+
+		let color = 'rgba(16,185,129,0.65)';
+		if (!isSafe) color = 'rgba(239,68,68,0.85)';
+		else if (isWarn) color = 'rgba(245,158,11,0.75)';
+		stops.push(`${color} ${h}deg`);
+	}
+	return stops;
+}
+
+// ── MAIN LIVE VIEW UPDATE ──
+function updateLiveView() {
+	if (!state.ops.length || !state.wx.length) return;
+
+	const wx = getLiveWx(lv.t);
+	if (!wx) return;
+
+	const pct = lv.t / lv.t_pop;
+
+	// T+ display
+	const h = Math.floor(lv.t), m = Math.round((lv.t % 1) * 60);
+	document.getElementById('live-tplus').textContent =
+		`T+ ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+	// Active op
+	const curOp = state.ops.find(o => !o.completed && lv.t >= o.start && lv.t < o.end);
+
+	// ── TASK BLOCK: sync display to current time ──
+	const activeIdx = curOp ? state.ops.indexOf(curOp) : -1;
+
+	// Auto-advance the task block when sim crosses into a new task
+	if (activeIdx !== -1 && activeIdx !== currentTaskIdx) {
+		const dir = activeIdx > currentTaskIdx ? 1 : -1;
+		currentTaskIdx = activeIdx;
+		renderTaskBlock(activeIdx, dir);
+		rebuildTaskDots();
+		updateTaskNav();
+	}
+
+	// Update progress bar + scrub fill within current task
+	if (curOp) {
+		const taskPct = ((lv.t - curOp.start) / (curOp.end - curOp.start)) * 100;
+		const bar  = document.getElementById('tb-progress');
+		const fill = document.getElementById('tb-scrub-fill');
+		if (bar)  bar.style.width  = Math.min(100, taskPct).toFixed(1) + '%';
+		if (fill) fill.style.width = Math.min(100, taskPct).toFixed(1) + '%';
+	} else {
+		const bar  = document.getElementById('tb-progress');
+		const fill = document.getElementById('tb-scrub-fill');
+		const w    = lv.t >= lv.t_pop ? '100%' : '0%';
+		if (bar)  bar.style.width  = w;
+		if (fill) fill.style.width = w;
+	}
+
+	// ── HEADING: always seek plan heading, deviate only if clear weather benefit ──
+	if (curOp) {
+		try {
+			const tol = parseInt(curOp.hdgMode) || 0;
+			if (tol === 0 || !wx) {
+				lv.targetHdg = curOp.fixedHdg;
+			} else {
+				const planUtil = _getHdgUtilisation(curOp, wx, curOp.fixedHdg);
+				if (planUtil <= 0.75) {
+					lv.targetHdg = curOp.fixedHdg; // green — hold course
+				} else {
+					const optHdg  = getOptimalHdg(curOp, wx);
+					const optUtil = _getHdgUtilisation(curOp, wx, optHdg);
+					lv.targetHdg  = (optUtil < planUtil - 0.05) ? optHdg : curOp.fixedHdg;
+				}
+			}
+		} catch(e) {
+			lv.targetHdg = curOp.fixedHdg; // safe fallback
+		}
+	}
+	// Smooth heading interpolation
+	let diff = lv.targetHdg - lv.hdg;
+	if (diff > 180) diff -= 360;
+	if (diff < -180) diff += 360;
+	lv.hdg = ((lv.hdg + diff * 0.1) + 360) % 360;
+	const hdgRounded = Math.round(lv.hdg);
+
+	document.getElementById('live-hdg-display').textContent = String(hdgRounded).padStart(3,'0') + '°';
+	document.getElementById('live-hdg-big').textContent     = String(hdgRounded).padStart(3,'0') + '°';
+
+	// Heading sub-label
+	if (curOp) {
+		const tol = parseInt(curOp.hdgMode) || 0;
+		document.getElementById('live-hdg-sub').textContent =
+			`VESSEL HDG — TGT: ${String(curOp.fixedHdg).padStart(3,'0')}° ±${tol}°`;
+	} else {
+		document.getElementById('live-hdg-sub').textContent = 'VESSEL HEADING — NO ACTIVE TASK';
+	}
+
+	// ── ROTATE SVG ELEMENTS ──
+	document.getElementById('mob-vessel').setAttribute('transform',   `rotate(${lv.hdg},150,150)`);
+	document.getElementById('mob-tgt-line').setAttribute('transform', `rotate(${lv.targetHdg},150,150)`);
+	document.getElementById('mob-arr-wind').setAttribute('transform',  `rotate(${wx.wDir},150,150)`);
+	document.getElementById('mob-arr-sea').setAttribute('transform',   `rotate(${wx.seaDir},150,150)`);
+	document.getElementById('mob-arr-swell').setAttribute('transform', `rotate(${wx.swDir},150,150)`);
+	document.getElementById('mob-arr-curr').setAttribute('transform',  `rotate(${wx.cDir},150,150)`);
+
+	// ── TOLERANCE ARC ──
+	if (curOp) {
+		const tol = parseInt(curOp.hdgMode) || 0;
+		if (tol > 0) {
+			const tgtR = curOp.fixedHdg;
+			const rad = ang => ((ang - 90) * Math.PI / 180);
+			const r = 140;
+			const x1 = 150 + r * Math.cos(rad(tgtR - tol));
+			const y1 = 150 + r * Math.sin(rad(tgtR - tol));
+			const x2 = 150 + r * Math.cos(rad(tgtR + tol));
+			const y2 = 150 + r * Math.sin(rad(tgtR + tol));
+			const la = tol * 2 > 180 ? 1 : 0;
+			document.getElementById('mob-tol-arc').setAttribute('d',
+				`M150,150 L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${la},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z`);
+			document.getElementById('mob-tol-left').setAttribute('transform',  `rotate(${tgtR - tol},150,150)`);
+			document.getElementById('mob-tol-right').setAttribute('transform', `rotate(${tgtR + tol},150,150)`);
+			document.getElementById('mob-tol-arc').style.display    = 'block';
+			document.getElementById('mob-tol-left').style.display   = 'block';
+			document.getElementById('mob-tol-right').style.display  = 'block';
+		} else {
+			document.getElementById('mob-tol-arc').style.display   = 'none';
+			document.getElementById('mob-tol-left').style.display  = 'none';
+			document.getElementById('mob-tol-right').style.display = 'none';
+		}
+	}
+
+	// ── SIDE READOUTS ──
+	const stern   = (lv.hdg + 180) % 360;
+	const relWind = Math.round((stern - wx.wDir  + 360) % 360);
+	const relSea  = Math.round((stern - wx.seaDir + 360) % 360);
+	const relSw   = Math.round((stern - wx.swDir  + 360) % 360);
+	document.getElementById('cs-wind').textContent  = `${Math.round(wx.wSpd)}k/${String(Math.round(wx.wDir)).padStart(3,'0')}°`;
+	document.getElementById('cs-sea').textContent   = `${wx.seaHs.toFixed(1)}m/${wx.seaTp.toFixed(0)}s`;
+	document.getElementById('cs-swell').textContent = `${wx.swHs.toFixed(1)}m/${wx.swTp.toFixed(0)}s`;
+	document.getElementById('cs-curr').textContent  = `${wx.cSpd.toFixed(1)}k/${String(Math.round(wx.cDir)).padStart(3,'0')}°`;
+
+	// ── HEATMAP ──
+	if (curOp) {
+		const stops = buildMobHeatmapStops(curOp, wx);
+		document.getElementById('mob-heatmap').style.background =
+			`conic-gradient(from 0deg, ${stops.join(', ')})`;
+	} else {
+		document.getElementById('mob-heatmap').style.background = 'transparent';
+	}
+
+	// ── ALERT STRIP ──
+	const alertEl = document.getElementById('live-alert');
+	const msgEl   = document.getElementById('live-alert-msg');
+	const opEl    = document.getElementById('live-op-name');
+
+	if (!curOp) {
+		alertEl.className = 'live-alert safe';
+		opEl.textContent  = 'BETWEEN TASKS';
+		msgEl.textContent = 'NO ACTIVE OPERATION';
+		return;
+	}
+
+	opEl.textContent = curOp.label || 'ACTIVE OPERATION';
+
+	// Evaluate current status at this heading
+	const seaLim = getMinLimit(curOp.refs, wx.seaTp, relSea);
+	const swLim  = getMinLimit(curOp.refs, wx.swTp,  relSw);
+
+	let worstStatus = 'pass';
+	let worstMsg    = 'ALL CLEAR';
+
+	const check = (actual, limit, name, unit) => {
+		if (limit === null) return;
+		if (actual > limit) {
+			worstStatus = 'fail';
+			worstMsg    = `${name} ${actual.toFixed(1)}${unit} > ${limit.toFixed(1)}${unit} LIMIT`;
+		} else if (actual >= limit * WARN_THRESHOLD && worstStatus !== 'fail') {
+			worstStatus = 'warn';
+			worstMsg    = `${name} ${actual.toFixed(1)}${unit} NEAR LIMIT (${(actual/limit*100).toFixed(0)}%)`;
+		}
+	};
+
+	check(wx.seaHs, seaLim, 'SEA Hs', 'm');
+	check(wx.swHs,  swLim,  'SWL Hs', 'm');
+	if (curOp.hasWaveLimit) check(wx.seaHs, curOp.maxHs, 'GLOBAL Hs', 'm');
+	if (curOp.hasLim) {
+		const force = curOp.limType === 'WIND' ? wx.wSpd : wx.cSpd;
+		const dir   = curOp.limType === 'WIND' ? wx.wDir : wx.cDir;
+		const diff2 = Math.abs((dir - curOp.limDir + 540) % 360 - 180);
+		if (diff2 <= curOp.limTol) check(force, curOp.limVal, curOp.limType, 'k');
+	}
+
+	// Reflect live verdict onto the current task block
+	const blockEl = document.getElementById('task-block-current');
+	if (blockEl && currentTaskIdx === state.ops.indexOf(curOp)) {
+		const labels = { pass:'PASS', warn:'WARNING', fail:'FAILED' };
+		const verdictEl = document.getElementById('tb-verdict');
+		blockEl.className = `task-block ${worstStatus}-block visible`;
+		if (verdictEl) verdictEl.textContent = labels[worstStatus] || '—';
+	}
+
+	alertEl.className = `live-alert ${worstStatus}`;
+	msgEl.textContent  = worstMsg;
+}
+
+// ── SIMULATION ──
+function toggleSim() {
+	const btn = document.getElementById('sim-play-btn');
+	if (lv.simTimer) {
+		clearInterval(lv.simTimer);
+		lv.simTimer = null;
+		btn.className = 'sim-btn play';
+		btn.textContent = '▶ PLAY';
+	} else {
+		const maxT = lv.t_pop;
+		if (lv.t >= maxT) lv.t = 0;
+		btn.className = 'sim-btn pause';
+		btn.textContent = '⏸ PAUSE';
+		lv.simTimer = setInterval(() => {
+			lv.t += 0.04 * lv.simSpeed;
+			if (lv.t > maxT) {
+				if (lv.simLoop) { lv.t = 0; }
+				else { lv.t = maxT; toggleSim(); return; }
+			}
+			updateLiveView();
+		}, 40);
+	}
+}
+
+function toggleSimSpeed() {
+	lv.simSpeed = lv.simSpeed === 1.0 ? 2.0 : lv.simSpeed === 2.0 ? 0.5 : 1.0;
+	const btn = document.getElementById('sim-speed-btn');
+	btn.textContent = `${lv.simSpeed.toFixed(1)}× SPD`;
+	btn.className = lv.simSpeed !== 1.0 ? 'sim-btn active' : 'sim-btn';
+}
+
+function toggleSimLoop() {
+	lv.simLoop = !lv.simLoop;
+	const btn = document.getElementById('sim-loop-btn');
+	btn.textContent = lv.simLoop ? '🔁 LOOP' : '➡️ ONCE';
+	btn.className = lv.simLoop ? 'sim-btn active' : 'sim-btn';
+}
+
+// ── TIMELINE SCRUB (touch + mouse) ──
+function bindScrubber(trackId) {
+	const track = document.getElementById(trackId);
+	if (!track) return;
+
+	const doScrub = (clientX) => {
+		const r = track.getBoundingClientRect();
+		lv.t = Math.max(0, Math.min(lv.t_pop, ((clientX - r.left) / r.width) * lv.t_pop));
+		updateLiveView();
+	};
+
+	track.addEventListener('mousedown', e => {
+		lv.scrubbing = true; doScrub(e.clientX);
+	});
+	track.addEventListener('touchstart', e => {
+		e.preventDefault(); lv.scrubbing = true;
+		doScrub(e.touches[0].clientX);
+	}, { passive: false });
+
+	window.addEventListener('mousemove', e => { if (lv.scrubbing) doScrub(e.clientX); });
+	window.addEventListener('touchmove', e => {
+		if (lv.scrubbing) { e.preventDefault(); doScrub(e.touches[0].clientX); }
+	}, { passive: false });
+	window.addEventListener('mouseup',  () => { lv.scrubbing = false; });
+	window.addEventListener('touchend', () => { lv.scrubbing = false; });
+}
+// bindScrubber calls removed — tracks replaced by task-nav-row buttons
+
+// ── Kick off live view after analysis runs ──
+const _origRunAnalysis = runAnalysis;
+runAnalysis = function() {
+	_origRunAnalysis();
+	initLiveView();
+	// Store verdicts in taskVerdicts for task block colouring
+	setTimeout(() => {
+		const resultCards = document.querySelectorAll('.op-result');
+		resultCards.forEach((card, i) => {
+			if      (card.classList.contains('r-fail'))   taskVerdicts[i] = 'fail';
+			else if (card.classList.contains('r-warn'))   taskVerdicts[i] = 'warn';
+			else if (card.classList.contains('r-pass'))   taskVerdicts[i] = 'pass';
+			else                                           taskVerdicts[i] = 'none';
+		});
+		rebuildTaskDots();
+		renderTaskBlock(currentTaskIdx, null);
+	}, 100);
+};
+
+// Auto-run analysis + init live view when plan+wx both loaded
+const _origCheckRunReady = checkRunReady;
+checkRunReady = function() {
+	_origCheckRunReady();
+	if (state.ops.length && state.wx.length) {
+		initLiveView();
+		// Auto-run analysis so results are immediately available
+		if (!window._autoAnalysisRan) {
+			window._autoAnalysisRan = true;
+			setTimeout(() => {
+				toast('⚙ Running analysis…');
+				runAnalysis();
+			}, 300);
+		}
+	}
+};
+// Reset auto-analysis flag when new plan/wx loaded
+const _origLoadPlan = loadPlanFromText;
+loadPlanFromText = function(txt) {
+	window._autoAnalysisRan = false;
+	_origLoadPlan(txt);
+};
+
+// ═══════════════════════════════════════════════════
+// TIDAL DATA PARSER (exact port from desktop)
+// ═══════════════════════════════════════════════════
+document.getElementById('wx-tide-input').addEventListener('change', function(e) {
+	const file = e.target.files[0];
+	if (!file) return;
+	if (!state.missionStart) { toast('Load a plan or set a mission start first', true); return; }
+	const reader = new FileReader();
+	reader.onload = ev => parseTideData(ev.target.result);
+	reader.readAsText(file);
+	e.target.value = '';
+});
+
+function parseTideData(text) {
+	const rows = text.split(/\r?\n/)
+		.map(r => r.replace(/"/g,'').trim())
+		.filter(r => r.length > 0);
+
+	let processedTide = [];
+	let i = 0;
+
+	while (i < rows.length) {
+		const row = rows[i];
+		// Skip non-date rows (no slash) or time-only rows
+		if (!row.includes('/') || row.includes(':')) { i++; continue; }
+
+		const dateStr = row;
+		const [d, m, y] = dateStr.split('/').map(Number);
+		if (!d || !m || !y) { i++; continue; }
+		const rowDate = new Date(y, m - 1, d, 0, 0);
+
+		for (let hour = 0; hour < 24; hour++) {
+			i++;
+			if (i >= rows.length) break;
+			const val = parseFloat(rows[i]);
+			if (!isNaN(val) && state.missionStart) {
+				const elapsed = (rowDate.getTime() - state.missionStart.getTime()) / MS_PER_HOUR + hour;
+				if (elapsed >= -1) {
+					processedTide.push({ hour: elapsed, height: val / 100 }); // cm → m
+				}
+			}
+		}
+		i++;
+	}
+
+	// Also handle simple two-column CSV format (hour, height_m)
+	if (processedTide.length === 0) {
+		rows.forEach(row => {
+			const cols = row.split(/[\t,;]+/);
+			if (cols.length >= 2) {
+				const h = parseFloat(cols[0]);
+				const v = parseFloat(cols[1]);
+				if (!isNaN(h) && !isNaN(v)) processedTide.push({ hour: h, height: v });
+			}
+		});
+	}
+
+	if (processedTide.length === 0) { toast('No tide data found in file', true); return; }
+
+	state.tide = processedTide.sort((a, b) => a.hour - b.hour);
+	document.getElementById('wx-tide-btn').classList.add('loaded');
+	document.getElementById('wx-tide-count').textContent = `${state.tide.length} pts`;
+	document.getElementById('ab-tide').textContent = `${state.tide.length} points`;
+	drawTideSparkline();
+	toast(`✅ ${state.tide.length} tide points loaded`);
+}
+
+// ═══════════════════════════════════════════════════
+// TIDE SPARKLINE RENDERER
+// ═══════════════════════════════════════════════════
+function drawTideSparkline() {
+	if (!state.tide || state.tide.length === 0) return;
+
+	document.getElementById('tide-sparkline-card').style.display = 'block';
+
+	const canvas  = document.getElementById('tide-canvas');
+	const ctx     = canvas.getContext('2d');
+	const dpr     = window.devicePixelRatio || 1;
+	const W       = canvas.offsetWidth  || 300;
+	const H       = 70;
+
+	canvas.width  = W * dpr;
+	canvas.height = H * dpr;
+	ctx.scale(dpr, dpr);
+
+	const tide    = state.tide;
+	const maxH    = Math.max(...tide.map(t => t.height));
+	const minH    = Math.min(...tide.map(t => t.height));
+	const range   = maxH - minH || 1;
+	const maxT    = Math.max(...tide.map(t => t.hour));
+	const minT    = Math.min(...tide.map(t => t.hour));
+	const tRange  = maxT - minT || 1;
+
+	const xOf = t => ((t - minT) / tRange) * W;
+	const yOf = h => H - 6 - ((h - minH) / range) * (H - 12);
+
+	// Background
+	ctx.fillStyle = 'rgba(0,0,0,0.3)';
+	ctx.fillRect(0, 0, W, H);
+
+	// Op window overlays
+	if (state.ops.length && state.missionStart) {
+		state.ops.forEach(op => {
+			ctx.fillStyle = 'rgba(0,212,255,0.05)';
+			ctx.fillRect(xOf(op.start), 0, xOf(op.end) - xOf(op.start), H);
+		});
+	}
+
+	// Tide fill
+	ctx.beginPath();
+	ctx.moveTo(xOf(tide[0].hour), H);
+	tide.forEach(t => ctx.lineTo(xOf(t.hour), yOf(t.height)));
+	ctx.lineTo(xOf(tide[tide.length-1].hour), H);
+	ctx.closePath();
+	ctx.fillStyle = 'rgba(45,212,191,0.12)';
+	ctx.fill();
+
+	// Tide line
+	ctx.beginPath();
+	tide.forEach((t, i) => i === 0 ? ctx.moveTo(xOf(t.hour), yOf(t.height)) : ctx.lineTo(xOf(t.hour), yOf(t.height)));
+	ctx.strokeStyle = '#2dd4bf';
+	ctx.lineWidth   = 1.5;
+	ctx.stroke();
+
+	// Mission window marker
+	if (state.wx.length) {
+		const wxEnd = state.wx[state.wx.length-1].end;
+		ctx.strokeStyle = 'rgba(0,232,135,0.4)';
+		ctx.lineWidth = 1;
+		ctx.setLineDash([3,3]);
+		ctx.beginPath(); ctx.moveTo(xOf(0), 0); ctx.lineTo(xOf(0), H); ctx.stroke();
+		ctx.beginPath(); ctx.moveTo(xOf(wxEnd), 0); ctx.lineTo(xOf(wxEnd), H); ctx.stroke();
+		ctx.setLineDash([]);
+	}
+
+	// Labels
+	document.getElementById('tide-meta-label').textContent =
+		`${state.tide.length} points · ${Math.round(tRange)}h window`;
+	document.getElementById('tide-range-label').textContent =
+		`${minH.toFixed(1)}m – ${maxH.toFixed(1)}m`;
+}
+
+// ═══════════════════════════════════════════════════
+// SAVE PLAN (.csv — WxPlanner Plan v2)
+// ═══════════════════════════════════════════════════
+function savePlan() {
+	if (!state.ops.length) { toast('No plan loaded to save', true); return; }
+
+	const name     = state.projectName || 'WXPLANNER_EXPORT';
+	const dateStr  = new Date().toISOString().split('T')[0].replace(/-/g,'');
+	const fileName = `${name.replace(/[^a-z0-9]/gi,'_').toUpperCase()}_${dateStr}.csv`;
+
+	const rows = [];
+	rows.push('# WxPlanner Plan v2');
+	rows.push(`# Project,${name}`);
+	rows.push(`# MissionStart,${state.missionStart ? state.missionStart.toISOString() : ''}`);
+	rows.push('# ---');
+
+	// Operations
+	state.ops.forEach(op => {
+		const refs = (op.refs || ['NONE']).join('|');
+		rows.push(['OP', op.label||'', op.start, op.end, op.fixedHdg||0, op.hdgMode||45, refs,
+			op.hasLim?'1':'0', op.limType||'WIND', op.limVal||0, op.limDir||0, op.limTol||45,
+		op.hasWaveLimit?'1':'0', op.maxHs||2.5, op.completed?'1':'0'
+		].join(','));
+	});
+	rows.push('# ---');
+
+	// Analysis matrices — flat orcaData[id] = {tp: [12 values]}
+	Object.keys(state.orcaData).forEach(id => {
+		const entry = state.orcaData[id];
+		Object.keys(entry).forEach(tp => {
+			if (Array.isArray(entry[tp])) {
+				rows.push(['MATRIX', id, 'WAVE_HS_BY_TP', tp, ...entry[tp].map(v => v===null?'':v)].join(','));
+			}
+		});
+	});
+	rows.push('# ---');
+
+	// Tide
+	(state.tide||[]).forEach(t => rows.push(`TIDE,${t.hour},${t.height}`));
+
+	const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+	const url  = URL.createObjectURL(blob);
+	const a    = document.createElement('a');
+	a.href = url; a.download = fileName; a.click();
+	URL.revokeObjectURL(url);
+	toast(`✅ Saved: ${fileName}`);
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT SUMMARY  (shareable text — for WhatsApp/email)
+// ═══════════════════════════════════════════════════
+function exportSummary() {
+	if (!state.ops.length) { toast('Run analysis first', true); return; }
+
+	const pad  = n => String(n).padStart(2,'0');
+	const now  = new Date();
+	const ts   = `${pad(now.getDate())}/${pad(now.getMonth()+1)}/${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())} UTC`;
+
+	let lines = [];
+	lines.push(`WXPLANNER FIELD REPORT`);
+	lines.push(`Project: ${state.projectName || '—'}`);
+	lines.push(`Generated: ${ts}`);
+	if (state.missionStart) lines.push(`Mission Start: ${formatAbsTime(state.missionStart)}`);
+	if (state.wx.length) {
+		const wxEnd = state.wx[state.wx.length-1].end;
+		lines.push(`Forecast Window: ${wxEnd.toFixed(0)}h · ${state.bucketSize}h blocks (worst-case)`);
+	}
+	lines.push('');
+	lines.push('─────────────────────────────');
+	lines.push('OPERATION RESULTS');
+	lines.push('─────────────────────────────');
+
+	// Re-run analysis silently to get verdicts
+	state.ops.forEach(op => {
+		const overlaps = state.wx.filter(w => w.start < op.end && w.end > op.start);
+		let opVerdict = overlaps.length === 0 ? 'NO DATA' : 'PASS';
+		const failures = [];
+
+		overlaps.forEach(wx => {
+			const bestHdg = getOptimalHdg(op, wx);
+			const stern   = (bestHdg + 180) % 360;
+			const relSea  = (stern - wx.seaDir + 360) % 360;
+			const relSw   = (stern - wx.swDir  + 360) % 360;
+
+			if (op.hasWaveLimit && wx.seaHs > op.maxHs) {
+				opVerdict = 'FAILED';
+				failures.push(`Global Hs ${wx.seaHs.toFixed(1)}m > ${op.maxHs.toFixed(1)}m`);
+			}
+			(op.refs || []).filter(r => r !== 'NONE').forEach(ref => {
+				const seaLim = getLimit(ref, wx.seaTp, relSea);
+				const swLim  = getLimit(ref, wx.swTp, relSw);
+				if (seaLim !== null && wx.seaHs > seaLim) {
+					opVerdict = 'FAILED';
+					failures.push(`${ref}: Sea Hs ${wx.seaHs.toFixed(1)}m > ${seaLim.toFixed(1)}m @ T+${wx.start.toFixed(0)}h`);
+				}
+				if (swLim !== null && wx.swHs > swLim) {
+					opVerdict = 'FAILED';
+					failures.push(`${ref}: Swell Hs ${wx.swHs.toFixed(1)}m > ${swLim.toFixed(1)}m @ T+${wx.start.toFixed(0)}h`);
+				}
+			});
+			if (opVerdict === 'PASS') {
+				const seaLim = getMinLimit(op.refs, wx.seaTp, relSea);
+				const swLim  = getMinLimit(op.refs, wx.swTp, relSw);
+				if ((seaLim !== null && wx.seaHs >= seaLim * WARN_THRESHOLD) ||
+					(swLim  !== null && wx.swHs  >= swLim  * WARN_THRESHOLD)) {
+					opVerdict = 'WARNING';
+				}
+			}
+		});
+
+		const icon = opVerdict === 'PASS' ? '✅' : opVerdict === 'WARNING' ? '⚠️' : opVerdict === 'FAILED' ? '❌' : '—';
+		lines.push(`${icon} ${op.label}`);
+		lines.push(`   T+${op.start.toFixed(1)}h → T+${op.end.toFixed(1)}h | Hdg ${op.fixedHdg}° ±${op.hdgMode}°`);
+		if (failures.length) failures.forEach(f => lines.push(`   ⛔ ${f}`));
+		lines.push('');
+	});
+
+	lines.push('─────────────────────────────');
+	lines.push('Analysis references:');
+	Object.keys(state.orcaData).forEach(k => lines.push(`  · ${k}`));
+	lines.push('─────────────────────────────');
+	lines.push('Generated by WxPlanner Field v1.0');
+
+	const text = lines.join('\n');
+
+	// Share API if available, otherwise download
+	if (navigator.share) {
+		navigator.share({ title: 'WxPlanner Report', text }).catch(() => downloadText(text, 'WxPlanner_Report.txt'));
+	} else {
+		downloadText(text, `${(state.projectName||'REPORT').replace(/[^a-z0-9]/gi,'_')}_SUMMARY.txt`);
+	}
+}
+
+function downloadText(text, fileName) {
+	const blob = new Blob([text], { type: 'text/plain' });
+	const url  = URL.createObjectURL(blob);
+	const a    = document.createElement('a');
+	a.href = url; a.download = fileName; a.click();
+	URL.revokeObjectURL(url);
+	toast('✅ Summary exported');
+}
+
+// Redraw sparkline on window resize
+window.addEventListener('resize', () => { if (state.tide.length) drawTideSparkline(); });
+
+// ═══════════════════════════════════════════════════
+// THUMB SCRUB — absolute position maps touch to task time
+// ═══════════════════════════════════════════════════
+(function() {
+	let scrubbing = false;
+
+	function getWrap() { return document.getElementById('task-block-wrap'); }
+
+	function scrubToPos(clientX) {
+		const wrap = getWrap();
+		if (!wrap) return;
+		const rect = wrap.getBoundingClientRect();
+		const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+		const op   = state.ops[currentTaskIdx];
+		if (op) {
+			lv.t = op.start + pct * (op.end - op.start);
+		} else {
+			lv.t = pct * (lv.t_pop || 1);
+		}
+		lv.t = Math.max(0, Math.min(lv.t_pop || 0, lv.t));
+		updateLiveView();
+	}
+
+	function start(e) {
+		e.preventDefault();
+		scrubbing = true;
+		const wrap = getWrap();
+		if (wrap) wrap.classList.add('dragging');
+		scrubToPos(e.touches ? e.touches[0].clientX : e.clientX);
+	}
+	function move(e) {
+		if (!scrubbing) return;
+		e.preventDefault();
+		scrubToPos(e.touches ? e.touches[0].clientX : e.clientX);
+	}
+	function end() {
+		if (!scrubbing) return;
+		scrubbing = false;
+		const wrap = getWrap();
+		if (wrap) wrap.classList.remove('dragging');
+	}
+
+	document.addEventListener('DOMContentLoaded', () => {
+		const wrap = getWrap();
+		if (!wrap) return;
+		wrap.addEventListener('mousedown',  start);
+		wrap.addEventListener('touchstart', start, { passive: false });
+		window.addEventListener('mousemove',  move);
+		window.addEventListener('touchmove',  move, { passive: false });
+		window.addEventListener('mouseup',    end);
+		window.addEventListener('touchend',   end);
+	});
+})();
+
+// ═══════════════════════════════════════════════════
+// HEADING + TOLERANCE MANUAL OVERRIDE
+// ═══════════════════════════════════════════════════
+let hdgOverrideActive = false;
+let hdgOverrideVal = 0;
+let tolOverrideVal = null; // null = use op's own tolerance
+
+function adjustHdg(delta) {
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+	if (!hdgOverrideActive) {
+		hdgOverrideActive = true;
+		hdgOverrideVal = op.fixedHdg;
+		if (tolOverrideVal === null) tolOverrideVal = parseInt(op.hdgMode) || 45;
+	}
+	hdgOverrideVal = ((hdgOverrideVal + delta) + 360) % 360;
+	syncHdgOverride();
+}
+
+function adjustTol(delta) {
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+	if (!hdgOverrideActive) {
+		hdgOverrideActive = true;
+		hdgOverrideVal = op.fixedHdg;
+	}
+	if (tolOverrideVal === null) tolOverrideVal = parseInt(op.hdgMode) || 45;
+	tolOverrideVal = Math.max(0, Math.min(90, tolOverrideVal + delta));
+	syncHdgOverride();
+}
+
+function resetHdgOverride() {
+	hdgOverrideActive = false;
+	hdgOverrideVal = 0;
+	tolOverrideVal = null;
+	const btn = document.getElementById('hdg-reset-btn');
+	const lbtn = document.getElementById('hdg-lock-btn');
+	if (btn)  { btn.classList.remove('active'); }
+	if (lbtn) { lbtn.classList.remove('locked'); lbtn.classList.remove('active'); }
+	_restoreOpOverride();
+	updateLiveView();
+}
+
+function lockHeading() {
+	// Set tolerance to 0 — strict heading lock
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+	if (!hdgOverrideActive) {
+		hdgOverrideActive = true;
+		hdgOverrideVal = op.fixedHdg;
+	}
+	tolOverrideVal = 0;
+	const lbtn = document.getElementById('hdg-lock-btn');
+	if (lbtn) { lbtn.classList.add('locked'); lbtn.classList.remove('active'); }
+	syncHdgOverride();
+}
+
+function syncHdgOverride() {
+	// Temporarily patch the current op's values for heatmap/heading recalc
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+	op._origFixedHdg = op._origFixedHdg ?? op.fixedHdg;
+	op._origHdgMode  = op._origHdgMode  ?? op.hdgMode;
+	op.fixedHdg = hdgOverrideVal;
+	if (tolOverrideVal !== null) op.hdgMode = String(tolOverrideVal);
+
+	// Visual indicator that override is active
+	const btn = document.getElementById('hdg-reset-btn');
+	if (btn) { btn.classList.add('active'); }
+
+	updateHdgAdjDisplay();
+	updateLiveView();
+}
+
+function updateHdgAdjDisplay() {
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+	const hdg = hdgOverrideActive ? hdgOverrideVal : op.fixedHdg;
+	const tol = tolOverrideVal !== null ? tolOverrideVal : (parseInt(op.hdgMode) || 0);
+	const hdgEl = document.getElementById('adj-hdg-val');
+	const tolEl = document.getElementById('adj-tol-val');
+	if (hdgEl) hdgEl.textContent = String(hdg).padStart(3,'0') + '°';
+	if (tolEl) tolEl.textContent = `±${tol}°`;
+}
+
+// Hook into stepTask / jumpToTask to restore overrides when changing task
+const _origStepTask = stepTask;
+stepTask = function(dir) {
+	_restoreOpOverride();
+	hdgOverrideActive = false; tolOverrideVal = null;
+	const btn = document.getElementById('hdg-reset-btn');
+	if (btn) { btn.style.color = ''; btn.style.borderColor = ''; }
+	_origStepTask(dir);
+	updateHdgAdjDisplay();
+};
+const _origJumpToTask = jumpToTask;
+jumpToTask = function(idx) {
+	_restoreOpOverride();
+	hdgOverrideActive = false; tolOverrideVal = null;
+	_origJumpToTask(idx);
+	updateHdgAdjDisplay();
+};
+
+function _restoreOpOverride() {
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+	if (op._origFixedHdg !== undefined) { op.fixedHdg = op._origFixedHdg; delete op._origFixedHdg; }
+	if (op._origHdgMode  !== undefined) { op.hdgMode  = op._origHdgMode;  delete op._origHdgMode;  }
+}
+
+// ═══════════════════════════════════════════════════
+// TIDE CANVAS ON TASK BLOCK
+// ═══════════════════════════════════════════════════
+// Cached canvas dimensions — survive task transitions
+let _tideCanvasW = 0, _tideCanvasH = 0;
+
+function drawTaskTideCanvas() {
+	const canvas = document.getElementById('task-tide-canvas');
+	if (!canvas || !state.tide || !state.tide.length || !state.ops.length) return;
+
+	const op = state.ops[currentTaskIdx];
+	if (!op) return;
+
+	// Use cached dims if available, otherwise measure
+	if (_tideCanvasW < 4 || _tideCanvasH < 4) {
+		const rect = canvas.getBoundingClientRect();
+		const prect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : rect;
+		_tideCanvasW = rect.width  || prect.width  || 0;
+		_tideCanvasH = rect.height || prect.height || 0;
+	}
+	if (_tideCanvasW < 4 || _tideCanvasH < 4) {
+		requestAnimationFrame(drawTaskTideCanvas);
+		return;
+	}
+	const W = _tideCanvasW, H = _tideCanvasH;
+
+	const dpr = window.devicePixelRatio || 1;
+	canvas.width  = W * dpr;
+	canvas.height = H * dpr;
+	const ctx = canvas.getContext('2d');
+	ctx.scale(dpr, dpr);
+	ctx.clearRect(0, 0, W, H);
+
+	// Show task window ±4h, fall back to full tide range if nothing visible
+	const winStart = Math.max(0, op.start - 4);
+	const winEnd   = Math.min(lv.t_pop, op.end   + 4);
+	const winRange = winEnd - winStart || 1;
+
+	// Try scoped window first, fall back to full range
+	let visible = state.tide.filter(t => t.hour >= winStart - 1 && t.hour <= winEnd + 1);
+	if (visible.length < 2) visible = state.tide; // show all if nothing in window
+	if (visible.length < 2) return;
+
+	const maxH = Math.max(...visible.map(t => t.height));
+	const minH = Math.min(...visible.map(t => t.height));
+	const hRange = maxH - minH || 1;
+
+	const xOf = t => ((t - winStart) / winRange) * W;
+	const yOf = h => H - 4 - ((h - minH) / hRange) * (H - 8);
+
+	// Task window highlight
+	ctx.fillStyle = 'rgba(0,212,255,0.08)';
+	ctx.fillRect(xOf(op.start), 0, xOf(op.end) - xOf(op.start), H);
+
+	// Tide fill
+	ctx.beginPath();
+	ctx.moveTo(xOf(visible[0].hour), H);
+	visible.forEach(t => ctx.lineTo(xOf(t.hour), yOf(t.height)));
+	ctx.lineTo(xOf(visible[visible.length-1].hour), H);
+	ctx.closePath();
+	ctx.fillStyle = 'rgba(45,212,191,0.18)';
+	ctx.fill();
+
+	// Tide line
+	ctx.beginPath();
+	visible.forEach((t, i) => i === 0 ? ctx.moveTo(xOf(t.hour), yOf(t.height)) : ctx.lineTo(xOf(t.hour), yOf(t.height)));
+	ctx.strokeStyle = '#2dd4bf';
+	ctx.lineWidth = 1.5;
+	ctx.stroke();
+
+	// Current time cursor
+	if (lv.t >= winStart && lv.t <= winEnd) {
+		ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+		ctx.lineWidth = 1;
+		ctx.setLineDash([3,3]);
+		ctx.beginPath();
+		ctx.moveTo(xOf(lv.t), 0);
+		ctx.lineTo(xOf(lv.t), H);
+		ctx.stroke();
+		ctx.setLineDash([]);
+	}
+}
+
+// Single renderTaskBlock wrapper — invalidates tide cache + redraws after animation
+const _origRenderTaskBlock = renderTaskBlock;
+renderTaskBlock = function(idx, dir) {
+	_tideCanvasW = 0; _tideCanvasH = 0; // invalidate tide cache
+	_origRenderTaskBlock(idx, dir);
+	setTimeout(drawTaskTideCanvas, 220); // after slide animation settles
+};
+
+// Extend updateLiveView to also refresh heading display and tide canvas
+const _origUpdateLiveView = updateLiveView;
+updateLiveView = function() {
+	_origUpdateLiveView();
+	updateHdgAdjDisplay();
+	drawTaskTideCanvas();
+};
+
+// ═══════════════════════════════════════════════════
+// FULLSCREEN: CLICK ANYWHERE TO CLOSE
+// ═══════════════════════════════════════════════════
+// Fullscreen opens on tap, closes only via ✕ button
+const _origOpen = openResultFullscreen;
+openResultFullscreen = function(idx) {
+	_origOpen(idx);
+};
+
+// Orientation lock
+try {
+	if (screen.orientation && screen.orientation.lock) {
+		screen.orientation.lock('landscape').catch(() => {});
+	}
+} catch(e) {}
+</script>
+</body>
+</html>
