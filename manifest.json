@@ -2,9 +2,8 @@
   "name": "Weather Planner Pro",
   "short_name": "WxPlanner",
   "description": "Offshore operational weather planning tool",
-  "start_url": "./WeatherPlannerPro_fixed.html",
-  "display": "fullscreen",
-  "orientation": "landscape",
+  "start_url": "./index.html",
+  "display": "standalone",
   "background_color": "#05070a",
   "theme_color": "#0f172a",
   "icons": [
