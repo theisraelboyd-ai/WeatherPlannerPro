@@ -2812,27 +2812,47 @@ function updateLiveView() {
 
 	opEl.textContent = curOp.label || 'ACTIVE OPERATION';
 
-	// Evaluate current status at this heading
-	const seaLim = getMinLimit(curOp.refs, wx.seaTp, relSea);
-	const swLim  = getMinLimit(curOp.refs, wx.swTp,  relSw);
+	// Evaluate current status at this heading & capture the specific Matrix names
+	let seaLim = null, swLim = null;
+	let seaRef = 'ANALYSIS', swRef = 'ANALYSIS';
+
+	(curOp.refs || []).forEach(ref => {
+		if (ref === 'NONE') return;
+		const lSea = getLimit(ref, wx.seaTp, relSea);
+		const lSw  = getLimit(ref, wx.swTp, relSw);
+		if (lSea !== null && (seaLim === null || lSea < seaLim)) { seaLim = lSea; seaRef = ref.replace(/_/g, ' '); }
+		if (lSw  !== null && (swLim  === null || lSw  < swLim))  { swLim  = lSw;  swRef  = ref.replace(/_/g, ' '); }
+	});
 
 	let worstStatus = 'pass';
-	let worstMsg    = 'ALL CLEAR';
+	let alertMsgs   = []; // <-- Array to collect ALL active alerts
 
+	// 1. Updated check function that pushes ALL alerts to the array
 	const check = (actual, limit, name, unit) => {
-		if (limit === null) return;
-		if (actual > limit) {
+		if (limit === null || limit === undefined) return;
+		
+		let cAct = Number(actual.toFixed(2));
+		let cLim = Number(limit.toFixed(2));
+		
+		if (cAct > cLim) {
 			worstStatus = 'fail';
-			worstMsg    = `${name} ${actual.toFixed(1)}${unit} > ${limit.toFixed(1)}${unit} LIMIT`;
-		} else if (actual >= limit * WARN_THRESHOLD && worstStatus !== 'fail') {
-			worstStatus = 'warn';
-			worstMsg    = `${name} ${actual.toFixed(1)}${unit} NEAR LIMIT (${(actual/limit*100).toFixed(0)}%)`;
+			alertMsgs.push(`<span style="color:var(--danger); display:block; padding:2px 0;">${name}: ${cAct.toFixed(2)}${unit} > ${cLim.toFixed(2)}${unit} LIMIT</span>`);
+		} else if (cAct >= cLim * WARN_THRESHOLD) {
+			if (worstStatus !== 'fail') worstStatus = 'warn';
+			alertMsgs.push(`<span style="color:var(--warn); display:block; padding:2px 0;">${name}: ${cAct.toFixed(2)}${unit} NEAR LIMIT (${Math.round(cAct/cLim*100)}%)</span>`);
 		}
 	};
 
-	check(wx.seaHs, seaLim, 'SEA Hs', 'm');
-	check(wx.swHs,  swLim,  'SWL Hs', 'm');
-	if (curOp.hasWaveLimit) check(wx.seaHs, curOp.maxHs, 'GLOBAL Hs', 'm');
+	// Use the captured Matrix names in the alert!
+	check(wx.seaHs, seaLim, `SEA Hs [${seaRef}]`, 'm');
+	check(wx.swHs,  swLim,  `SWL Hs [${swRef}]`, 'm');
+	
+	// 2. Omni-Directional check verifies BOTH Sea and Swell to 2DP
+	if (curOp.hasWaveLimit) {
+		check(wx.seaHs, curOp.maxHs, 'OMNI SEA', 'm');
+		check(wx.swHs,  curOp.maxHs, 'OMNI SWL', 'm');
+	}
+	
 	if (curOp.hasLim) {
 		const force = curOp.limType === 'WIND' ? wx.wSpd : wx.cSpd;
 		const dir   = curOp.limType === 'WIND' ? wx.wDir : wx.cDir;
@@ -2840,7 +2860,7 @@ function updateLiveView() {
 		if (diff2 <= curOp.limTol) check(force, curOp.limVal, curOp.limType, 'k');
 	}
 
-	// Reflect live verdict onto the current task block
+	// Reflect live verdict onto the current task block scrubber
 	const blockEl = document.getElementById('task-block-current');
 	if (blockEl && currentTaskIdx === state.ops.indexOf(curOp)) {
 		const labels = { pass:'PASS', warn:'WARNING', fail:'FAILED' };
@@ -2849,8 +2869,16 @@ function updateLiveView() {
 		if (verdictEl) verdictEl.textContent = labels[worstStatus] || '—';
 	}
 
-	alertEl.className = `live-alert ${worstStatus}`;
-	msgEl.textContent  = worstMsg;
+	// 3. Map 'fail' to the 'danger' CSS class so the container pulses red
+	const alertClass = worstStatus === 'fail' ? 'danger' : worstStatus;
+	alertEl.className = `live-alert ${alertClass}`;
+	
+	// 4. Inject the stacked alerts using innerHTML instead of textContent
+	if (alertMsgs.length === 0) {
+		msgEl.innerHTML = `<span style="color:var(--safe)">ALL CLEAR</span>`;
+	} else {
+		msgEl.innerHTML = alertMsgs.join('');
+	}
 }
 
 // ── SIMULATION ──
